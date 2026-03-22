@@ -739,6 +739,15 @@ export const DOMUtils = {
 
 // ==================== 导出所有组件 ====================
 
+// ES Module 导出
+export {
+    CalendarComponent,
+    ModalManager,
+    TabSwitcher,
+    ChipSelector,
+    DOMUtils
+};
+
 export default {
     CalendarComponent,
     ModalManager,
@@ -746,3 +755,14 @@ export default {
     ChipSelector,
     DOMUtils
 };
+
+// 全局导出（非模块环境）
+if (typeof window !== 'undefined') {
+    window.ChuMeComponents = {
+        CalendarComponent,
+        ModalManager,
+        TabSwitcher,
+        ChipSelector,
+        DOMUtils
+    };
+}

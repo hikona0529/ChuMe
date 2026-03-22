@@ -16,9 +16,6 @@
 
         let quickVol = null; // Current quick volume selection
         let calDate = new Date();
-        
-        // 日历组件实例
-        let waterCalendar = null;
 
         // --- Core Logic ---
 
