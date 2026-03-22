@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>身体数据</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- 啾咪全局样式 -->
+    <link rel="stylesheet" href="global.css">
+
+    <!-- 统一 Tailwind 配置（啾咪设计系统） -->
+    <script src="tailwind-config.js"></script>
+
+    <style>
+        /* Hide Input Arrows (Spin Buttons) */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input[type=number] {
+            -moz-appearance: textfield;
+            appearance: none;
+        }
+
+        /* Premium Input Row */
+        .ios-input-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 0;
+            border-bottom: 0.5px solid rgba(92, 75, 67, 0.1);
+        }
+
+        .ios-input-row:last-child {
+            border-bottom: none;
+        }
+
+        .ios-input-label {
+            width: 80px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 500;
+            color: var(--chume-brown);
+            font-size: 0.95rem;
+        }
+
+        .ios-input-box {
+            flex: 1;
+            position: relative;
+        }
+
+        .ios-input-field {
+            width: 100%;
+            border: none;
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            outline: none;
+            background: var(--chume-card);
+            color: var(--chume-brown);
+            text-align: left;
+            transition: all 0.2s;
+        }
+
+        .ios-input-field:focus {
+            background: #FFFFFF;
+            box-shadow: 0 0 0 2px var(--chume-orange);
+        }
+
+        .ios-input-unit {
+            position: absolute;
+            right: 9px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--chume-brown-light);
+            font-size: 0.65rem;
+            pointer-events: none;
+        }
+
+        .ios-input-status {
+            width: 88px;
+            height: 44px;
+            background: #FAFAFC;
+            border: 1px solid rgba(92, 75, 67, 0.15);
+            border-radius: 0.75rem;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--chume-brown-light);
+        }
+
+        .ios-input-status.good {
+            color: #34C759;
+            background: #E8F5E9;
+            border-color: #34C759;
+        }
+
+        .ios-input-status.bad {
+            color: #FF3B30;
+            background: #FFEBEE;
+            border-color: #FF3B30;
+        }
+
+        .ios-input-status.neutral {
+            color: var(--chume-brown-light);
+            background: var(--chume-card);
+            border-color: rgba(92, 75, 67, 0.15);
+        }
+    </style>
+</head>
+
+<body class="flex items-center justify-center min-h-screen min-h-[100dvh] bg-chume-cream sm:bg-[#E8DED4] sm:py-4 transition-colors duration-300">
+
+    <div id="app-container" class="bg-white overflow-hidden">
+
+        <!-- Header -->
+        <header
+            class="flex-none flex items-center justify-between px-5 py-4 bg-white/90 backdrop-blur-md z-20 border-b border-chume-brown/10">
+            <a href="index.html"
+                class="flex items-center gap-1.5 text-chume-orange active:opacity-50 transition-opacity absolute left-5 group">
+                <i class="fas fa-chevron-left text-lg"></i>
+                <span class="text-base font-medium font-title">返回</span>
+            </a>
+            <h1
+                class="text-[17px] font-semibold tracking-tight w-full text-center pointer-events-none text-chume-brown font-title">
+                身体数据
+            </h1>
+        </header>
+
+        <!-- Main Content -->
+        <div class="flex-1 overflow-y-auto hide-scrollbar p-0 pb-20 bg-white">
+
+            <!-- Tabs -->
+            <div class="px-4 py-3 bg-white">
+                <div class="bg-chume-card p-1 rounded-lg flex text-[13px] font-medium text-chume-brown-light h-[36px]">
+                    <button onclick="switchBodyTab('daily')" id="tab-btn-daily"
+                        class="flex-1 rounded-[7px] bg-white text-chume-brown shadow-card transition-all duration-300">每日数据</button>
+                    <button onclick="switchBodyTab('weekly')" id="tab-btn-weekly"
+                        class="flex-1 rounded-[7px] hover:text-chume-brown transition-all duration-300">每周数据</button>
+                    <button onclick="switchBodyTab('summary')" id="tab-btn-summary"
+                        class="flex-1 rounded-[7px] hover:text-chume-brown transition-all duration-300">数据汇总</button>
+                </div>
+            </div>
+
+            <!-- Date Nav: Trigger Button -->
+            <div id="body-nav-bar"
+                class="bg-white py-3 flex items-center justify-between px-6 border-b border-chume-brown/5 sticky top-0 z-10 backdrop-blur-sm bg-white/95">
+                <button onclick="bodyChangeDate(-1)"
+                    class="w-8 h-8 flex items-center justify-center rounded-full bg-chume-card text-chume-orange hover:bg-chume-cream active:bg-chume-orange-light transition-colors">
+                    <i class="fas fa-chevron-left text-sm"></i>
+                </button>
+
+                <!-- Custom Date Trigger -->
+                <button onclick="openCalendar()"
+                    class="flex items-center gap-2 px-4 py-1.5 bg-chume-card hover:bg-chume-cream active:scale-95 transition-all rounded-full border border-chume-brown/10 shadow-card">
+                    <i class="fas fa-calendar-alt text-chume-orange text-base"></i>
+                    <span id="body-date-display"
+                        class="font-semibold text-lg text-chume-brown tracking-tight font-title">今天</span>
+                    <i class="fas fa-caret-down text-chume-brown-light text-xs translate-y-[1px]"></i>
+                </button>
+
+                <button onclick="bodyChangeDate(1)"
+                    class="w-8 h-8 flex items-center justify-center rounded-full bg-chume-card text-chume-orange hover:bg-chume-cream active:bg-chume-orange-light transition-colors">
+                    <i class="fas fa-chevron-right text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Page: Daily -->
+            <div id="page-daily" class="px-5 py-2 space-y-6">
+                <!-- Daily Input Group -->
+                <div class="space-y-1">
+                    <!-- Glucose -->
+                    <div class="flex items-center justify-between w-full py-3 border-b border-chume-brown/10">
+                        <div class="text-chume-brown font-medium shrink-0">血糖</div>
+                        <div class="flex-1 ml-2 flex items-center bg-white/60 rounded-xl px-3 py-2 shadow-sm">
+                            <input type="number" id="in-glucose" oninput="autoSave('daily')" step="0.1"
+                                class="flex-1 w-0 bg-transparent outline-none text-left font-num text-chume-brown" placeholder="0.0">
+                            <span class="shrink-0 ml-2 text-sm text-chume-brown-light font-title">mmol/L</span>
+                        </div>
+                        <div class="ios-input-status ml-3" id="diff-glucose"></div>
+                    </div>
+
+                    <!-- Ketone -->
+                    <div class="flex items-center justify-between w-full py-3 border-b border-chume-brown/10">
+                        <div class="text-chume-brown font-medium shrink-0">血酮</div>
+                        <div class="flex-1 ml-2 flex items-center bg-white/60 rounded-xl px-3 py-2 shadow-sm">
+                            <input type="number" id="in-ketone" oninput="autoSave('daily')" step="0.1"
+                                class="flex-1 w-0 bg-transparent outline-none text-left font-num text-chume-brown" placeholder="0.0">
+                            <span class="shrink-0 ml-2 text-sm text-chume-brown-light font-title">mmol/L</span>
+                        </div>
+                        <div class="ios-input-status ml-3" id="diff-ketone"></div>
+                    </div>
+
+                    <!-- UA -->
+                    <div class="flex items-center justify-between w-full py-3 border-b border-chume-brown/10">
+                        <div class="text-chume-brown font-medium shrink-0">尿酸</div>
+                        <div class="flex-1 ml-2 flex items-center bg-white/60 rounded-xl px-3 py-2 shadow-sm">
+                            <input type="number" id="in-ua" oninput="autoSave('daily')"
+                                class="flex-1 w-0 bg-transparent outline-none text-left font-num text-chume-brown" placeholder="0">
+                            <span class="shrink-0 ml-2 text-sm text-chume-brown-light font-title">umol/L</span>
+                        </div>
+                        <div class="ios-input-status ml-3" id="diff-ua"></div>
+                    </div>
+
+                    <!-- BP -->
+                    <div class="flex items-center justify-between w-full py-3 border-b border-chume-brown/10">
+                        <div class="text-chume-brown font-medium shrink-0">血压</div>
+                        <div class="flex-1 ml-2 flex items-center gap-3">
+                            <div class="flex-1 flex items-center bg-white/60 rounded-xl px-3 py-2 shadow-sm">
+                                <input type="number" id="in-bp-high" oninput="autoSave('daily')"
+                                    class="flex-1 w-0 bg-transparent outline-none text-left font-num text-chume-brown" placeholder="高压">
+
+                            </div>
+                            <div class="flex-1 flex items-center bg-white/60 rounded-xl px-3 py-2 shadow-sm">
+                                <input type="number" id="in-bp-low" oninput="autoSave('daily')"
+                                    class="flex-1 w-0 bg-transparent outline-none text-left font-num text-chume-brown" placeholder="低压">
+
+                            </div>
+                        </div>
+                        <div class="ios-input-status ml-3 self-center" id="diff-bp"></div>
+                    </div>
+
+                    <!-- Weight -->
+                    <div class="flex items-center justify-between w-full py-3 border-none">
+                        <div class="text-chume-brown font-medium shrink-0">体重</div>
+                        <div class="flex-1 ml-2 flex items-center gap-3">
+                            <div class="flex-1 flex items-center bg-white/60 rounded-xl px-3 py-2 shadow-sm">
+                                <input type="number" id="in-weight-daily-kg"
+                                    oninput="syncWeight(this, 'daily', 'kg'); autoSave('daily')" step="0.1"
+                                    class="flex-1 w-0 bg-transparent outline-none text-left font-num text-chume-brown" placeholder="0.0">
+                                <span class="shrink-0 ml-2 text-sm text-chume-brown-light font-title">kg</span>
+                            </div>
+                            <div class="flex-1 flex items-center bg-white/60 rounded-xl px-3 py-2 shadow-sm">
+                                <input type="number" id="in-weight-daily-jin"
+                                    oninput="syncWeight(this, 'daily', 'jin'); autoSave('daily')" step="0.1"
+                                    class="flex-1 w-0 bg-transparent outline-none text-left font-num text-chume-brown" placeholder="0.0">
+                                <span class="shrink-0 ml-2 text-sm text-chume-brown-light font-title">斤</span>
+                            </div>
+                        </div>
+                        <div class="ios-input-status ml-3 self-center" id="diff-weight-daily"></div>
+                    </div>
+                </div>
+
+                <div class="pt-2 space-y-3 pb-8">
+                    <div class="flex justify-center">
+                        <div class="px-4 py-1 bg-chume-card rounded-full text-xs font-semibold text-chume-brown-light">
+                            备注</div>
+                    </div>
+                    <div
+                        class="bg-chume-card rounded-card p-4 border border-transparent focus-within:bg-white focus-within:border-chume-orange/30 focus-within:shadow-card transition-all">
+                        <textarea id="in-note-daily" oninput="autoSave('daily')"
+                            class="w-full h-32 bg-transparent text-base outline-none resize-none placeholder-chume-brown-light text-chume-brown"
+                            placeholder="今天有什么特别的感觉吗..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Page: Weekly -->
+            <div id="page-weekly" class="hidden px-5 py-2 space-y-6">
+                <div class="space-y-1">
+                    <div class="flex items-center justify-between w-full py-3 border-b border-chume-brown/10">
+                        <div class="text-chume-brown font-medium shrink-0">身高</div>
+                        <div class="flex-1 ml-2 flex items-center bg-white/60 rounded-xl px-3 py-2 shadow-sm">
+                            <input type="number" id="in-height"
+                                oninput="calcWeeklyStats(); autoSave('weekly')"
+                                class="flex-1 w-0 bg-transparent outline-none text-left font-num text-chume-brown">
+                            <span class="shrink-0 ml-2 text-sm text-chume-brown-light font-title">cm</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between w-full py-3 border-b border-chume-brown/10">
+                        <div class="text-chume-brown font-medium shrink-0">体重</div>
+                        <div class="flex-1 ml-2 flex items-center gap-3">
+                            <div class="flex-1 flex items-center bg-white/60 rounded-xl px-3 py-2 shadow-sm">
+                                <input type="number" id="in-weight-weekly-kg"
+                                    oninput="syncWeight(this, 'weekly', 'kg'); calcWeeklyStats(); autoSave('weekly')"
+                                    step="0.1"
+                                    class="flex-1 w-0 bg-transparent outline-none text-left font-num text-chume-brown" placeholder="0.0">
+                                <span class="shrink-0 ml-2 text-sm text-chume-brown-light font-title">kg</span>
+                            </div>
+                            <div class="flex-1 flex items-center bg-white/60 rounded-xl px-3 py-2 shadow-sm">
+                                <input type="number" id="in-weight-weekly-jin"
+                                    oninput="syncWeight(this, 'weekly', 'jin'); calcWeeklyStats(); autoSave('weekly')"
+                                    step="0.1"
+                                    class="flex-1 w-0 bg-transparent outline-none text-left font-num text-chume-brown" placeholder="0.0">
+                                <span class="shrink-0 ml-2 text-sm text-chume-brown-light font-title">斤</span>
+                            </div>
+                        </div>
+                        <div class="ios-input-status ml-3 self-center" id="diff-weight-weekly"></div>
+                    </div>
+                    <div class="flex items-center justify-between w-full py-3 border-b border-chume-brown/10">
+                        <div class="text-chume-brown font-medium shrink-0">腰围</div>
+                        <div class="flex-1 ml-2 flex items-center bg-white/60 rounded-xl px-3 py-2 shadow-sm">
+                            <input type="number" id="in-waist"
+                                oninput="calcWeeklyStats(); autoSave('weekly')"
+                                class="flex-1 w-0 bg-transparent outline-none text-left font-num text-chume-brown">
+                            <span class="shrink-0 ml-2 text-sm text-chume-brown-light font-title">cm</span>
+                        </div>
+                        <div class="ios-input-status ml-3" id="diff-waist"></div>
+                    </div>
+                    <div class="flex items-center justify-between w-full py-3 border-b border-chume-brown/10">
+                        <div class="text-chume-brown font-medium shrink-0">臀围</div>
+                        <div class="flex-1 ml-2 flex items-center bg-white/60 rounded-xl px-3 py-2 shadow-sm">
+                            <input type="number" id="in-hip"
+                                oninput="calcWeeklyStats(); autoSave('weekly')"
+                                class="flex-1 w-0 bg-transparent outline-none text-left font-num text-chume-brown">
+                            <span class="shrink-0 ml-2 text-sm text-chume-brown-light font-title">cm</span>
+                        </div>
+                        <div class="ios-input-status ml-3" id="diff-hip"></div>
+                    </div>
+                    <div class="flex items-center justify-between w-full py-3 border-b border-chume-brown/10">
+                        <div class="text-chume-brown font-medium shrink-0">体脂</div>
+                        <div class="flex-1 ml-2 flex items-center bg-white/60 rounded-xl px-3 py-2 shadow-sm">
+                            <input type="number" id="in-fat"
+                                oninput="calcWeeklyStats(); autoSave('weekly')" step="0.1"
+                                class="flex-1 w-0 bg-transparent outline-none text-left font-num text-chume-brown">
+                            <span class="shrink-0 ml-2 text-sm text-chume-brown-light font-title">kg</span>
+                        </div>
+                        <div class="ios-input-status ml-3" id="diff-fat"></div>
+                    </div>
+                    <div class="flex items-center justify-between w-full py-3 border-none">
+                        <div class="text-chume-brown font-medium shrink-0">肌肉</div>
+                        <div class="flex-1 ml-2 flex items-center bg-white/60 rounded-xl px-3 py-2 shadow-sm">
+                            <input type="number" id="in-muscle"
+                                oninput="calcWeeklyStats(); autoSave('weekly')" step="0.1"
+                                class="flex-1 w-0 bg-transparent outline-none text-left font-num text-chume-brown">
+                            <span class="shrink-0 ml-2 text-sm text-chume-brown-light font-title">kg</span>
+                        </div>
+                        <div class="ios-input-status ml-3" id="diff-muscle"></div>
+                    </div>
+                </div>
+
+                <!-- 统计面板 — 暖色调 -->
+                <div class="bg-chume-brown text-white p-5 rounded-card shadow-soft mt-2">
+                    <div class="grid grid-cols-3 gap-2 text-center divide-x divide-white/10">
+                        <div>
+                            <div class="text-[10px] text-white/60 uppercase">BMI</div>
+                            <div id="calc-bmi" class="text-xl font-medium mt-1 font-num">-</div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] text-white/60 uppercase">腰臀比</div>
+                            <div id="calc-whr" class="text-xl font-medium mt-1 font-num">-</div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] text-white/60 uppercase">体脂率</div>
+                            <div id="calc-fatrate" class="text-xl font-medium mt-1 font-num">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-2 space-y-3 pb-8">
+                    <div class="flex justify-center">
+                        <div class="px-4 py-1 bg-chume-card rounded-full text-xs font-semibold text-chume-brown-light">
+                            本周总结</div>
+                    </div>
+                    <div
+                        class="bg-chume-card rounded-card p-4 border border-transparent focus-within:bg-white focus-within:border-chume-orange/30 focus-within:shadow-card transition-all">
+                        <textarea id="in-note-weekly" oninput="autoSave('weekly')"
+                            class="w-full h-24 bg-transparent text-base outline-none resize-none placeholder-chume-brown-light text-chume-brown"
+                            placeholder="总结一下..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Page: Summary -->
+            <div id="page-summary" class="hidden px-5 py-4 space-y-6">
+                <div class="bg-chume-card p-1 rounded-xl flex">
+                    <button id="btn-src-daily" onclick="setSummarySource('daily')"
+                        class="flex-1 py-1.5 rounded-lg text-xs font-semibold bg-white shadow-card text-chume-brown transition-all">每日历史</button>
+                    <button id="btn-src-weekly" onclick="setSummarySource('weekly')"
+                        class="flex-1 py-1.5 rounded-lg text-xs font-semibold text-chume-brown-light hover:text-chume-brown transition-all">每周趋势</button>
+                </div>
+                <div id="metric-nav" class="flex gap-2 overflow-x-auto pb-2 hide-scrollbar"></div>
+                <div class="flex justify-end gap-2">
+                    <button onclick="setSummaryView('table')"
+                        class="p-2 text-chume-brown-light hover:text-chume-orange"><i class="fas fa-table"></i></button>
+                    <button onclick="setSummaryView('chart')"
+                        class="p-2 text-chume-brown-light hover:text-chume-orange"><i
+                            class="fas fa-chart-line"></i></button>
+                </div>
+                <div id="summary-content" class="bg-chume-card rounded-card p-1 min-h-[300px]"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CUSTOM CALENDAR MODAL -->
+    <div id="calendar-modal"
+        class="hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity opacity-0"
+        onclick="closeCalendarOnBg(event)">
+        <div class="bg-white rounded-card shadow-soft w-full max-w-[340px] overflow-hidden transform scale-95 transition-transform duration-200"
+            id="calendar-card">
+            <!-- Cal Header -->
+            <div class="flex justify-between items-center p-4 border-b border-chume-brown/10 bg-chume-card/50">
+                <button onclick="calChangeMonth(-1)"
+                    class="w-8 h-8 rounded-full flex items-center justify-center text-chume-orange hover:bg-white hover:shadow-card"><i
+                        class="fas fa-chevron-left"></i></button>
+                <span id="cal-title" class="text-base font-bold text-chume-brown font-title"></span>
+                <button onclick="calChangeMonth(1)"
+                    class="w-8 h-8 rounded-full flex items-center justify-center text-chume-orange hover:bg-white hover:shadow-card"><i
+                        class="fas fa-chevron-right"></i></button>
+            </div>
+            <!-- Cal Grid -->
+            <div class="p-4">
+                <!-- Weekdays -->
+                <div class="grid grid-cols-7 text-center mb-2">
+                    <div class="text-xs font-semibold text-chume-brown-light">日</div>
+                    <div class="text-xs font-semibold text-chume-brown-light">一</div>
+                    <div class="text-xs font-semibold text-chume-brown-light">二</div>
+                    <div class="text-xs font-semibold text-chume-brown-light">三</div>
+                    <div class="text-xs font-semibold text-chume-brown-light">四</div>
+                    <div class="text-xs font-semibold text-chume-brown-light">五</div>
+                    <div class="text-xs font-semibold text-chume-brown-light">六</div>
+                </div>
+                <!-- Days -->
+                <div id="cal-days" class="grid grid-cols-7 text-center gap-y-1"></div>
+            </div>
+            <!-- Footer -->
+            <div class="p-3 border-t border-chume-brown/10 flex justify-center">
+                <button onclick="closeCalendar()"
+                    class="text-chume-orange text-sm font-semibold px-4 py-1 font-title">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="utils.js"></script>
+    <script src="bodydata.js"></script>
+</body>
+
+</html>

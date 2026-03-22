@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="今日服药">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <title>今日服药</title>
+
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FontAwesome (CDN) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- 啾咪全局样式 -->
+    <link rel="stylesheet" href="global.css">
+
+    <!-- 统一 Tailwind 配置（啾咪设计系统） -->
+    <script src="tailwind-config.js"></script>
+
+    <style>
+        .tab-item {
+            min-height: 50px;
+            /* 保证触控面积 */
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        /* 底部抽屉切换动画 */
+        .sheet-visible {
+            transform: translateY(0);
+        }
+
+        .sheet-hidden {
+            transform: translateY(100%);
+        }
+
+        .backdrop-visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .backdrop-hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+    </style>
+</head>
+
+<body class="flex items-center justify-center min-h-screen min-h-[100dvh] bg-chume-cream sm:bg-[#E8DED4] sm:py-4 transition-colors duration-300">
+
+    <div id="app-container">
+
+        <!-- Header -->
+        <header
+            class="pt-12 pb-4 px-6 bg-white sticky top-0 z-20 flex flex-col justify-end backdrop-blur-md bg-white/90 border-b border-chume-brown/10">
+            <div class="flex items-center gap-3">
+                <a href="index.html"
+                    class="w-10 h-10 flex items-center justify-center rounded-xl bg-chume-card text-chume-brown active:scale-90 transition-transform">
+                    <i class="fa-solid fa-chevron-left text-lg"></i>
+                </a>
+                <h1 class="text-3xl font-bold text-chume-brown tracking-tight font-title">今日服药</h1>
+            </div>
+            <div class="mt-1 flex items-center space-x-2 text-chume-brown-light pl-[3.25rem]">
+                <i class="fa-regular fa-calendar text-sm"></i>
+                <span id="header-date" class="text-sm font-medium">--月--日 星期-</span>
+            </div>
+
+            <!-- Period Tabs -->
+            <div class="mt-5 bg-chume-card p-1.5 rounded-[1.1rem] flex items-center w-full">
+                <button type="button"
+                    class="board-tab-btn flex-1 py-1.5 text-[15px] font-bold text-chume-brown-light hover:text-chume-brown transition-all rounded-xl"
+                    data-period="早">早</button>
+                <button type="button"
+                    class="board-tab-btn flex-1 py-1.5 text-[15px] font-bold text-chume-brown-light hover:text-chume-brown transition-all rounded-xl"
+                    data-period="中">中</button>
+                <button type="button"
+                    class="board-tab-btn flex-1 py-1.5 text-[15px] font-bold text-chume-brown-light hover:text-chume-brown transition-all rounded-xl"
+                    data-period="晚">晚</button>
+                <button type="button"
+                    class="board-tab-btn flex-1 py-1.5 text-[15px] font-bold text-chume-brown-light hover:text-chume-brown transition-all rounded-xl"
+                    data-period="睡前">睡前</button>
+            </div>
+        </header>
+
+        <!-- Main Content (Medication List) -->
+        <main class="flex-1 overflow-y-auto px-5 py-5 space-y-4 bg-chume-card pb-28 animate-fade-in" id="reminder-list">
+            <!-- JS 将在此处注入服药清单或空状态 -->
+        </main>
+
+        <!-- Add Rule Floating Action Button -->
+        <div class="absolute bottom-[90px] right-6 z-20">
+            <button id="btn-add-rule"
+                class="w-14 h-14 bg-chume-orange text-white rounded-[1.25rem] shadow-soft flex items-center justify-center text-xl active:scale-95 transition-transform hover:shadow-soft hover:bg-[#F59030]">
+                <div class="icon-container"><i class="fa-solid fa-plus"></i></div>
+            </button>
+        </div>
+
+        <!-- Fixed Bottom Navigation Bar -->
+        <nav class="absolute bottom-0 w-full bg-white/95 backdrop-blur-md border-t border-chume-brown/10 pb-safe pt-2 px-2 flex justify-around z-30"
+            style="padding-bottom: max(env(safe-area-inset-bottom), 1.5rem);">
+            <!-- Tab 1: 服药提醒 (Active) -->
+            <a href="med-reminders.html" class="tab-item text-chume-orange active:scale-95 transition-transform">
+                <i class="fa-solid fa-bell text-xl"></i>
+                <span class="text-[11px] font-bold mt-1">服药提醒</span>
+            </a>
+
+            <!-- Tab 2: 我的药箱 (Inactive) -->
+            <a href="medicine.html"
+                class="tab-item text-chume-brown-light hover:text-chume-brown active:scale-95 transition-transform">
+                <i class="fa-solid fa-pills text-xl"></i>
+                <span class="text-[11px] font-semibold mt-1">我的药箱</span>
+            </a>
+        </nav>
+
+        <!-- Bottom Sheet (Form Modal) -->
+        <div id="form-backdrop"
+            class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 backdrop-hidden transition-opacity duration-300 max-w-[430px] mx-auto">
+        </div>
+
+        <div id="form-sheet"
+            class="fixed bottom-0 w-full max-w-[430px] bg-white rounded-t-3xl shadow-soft z-50 sheet-hidden transition-transform duration-300 flex flex-col max-h-[90vh]">
+
+            <!-- Drag Handle -->
+            <div class="w-full flex justify-center pt-3 pb-2">
+                <div class="w-12 h-1.5 bg-chume-card rounded-full"></div>
+            </div>
+
+            <!-- Form Header & Close -->
+            <div class="px-6 pb-4 pt-2 flex justify-between items-center border-b border-chume-brown/10">
+                <h2 id="form-title" class="text-xl font-bold text-chume-brown font-title">新增提醒规则</h2>
+                <button id="btn-close-form"
+                    class="w-8 h-8 flex items-center justify-center rounded-full bg-chume-card text-chume-brown-light active:scale-95 transition-transform">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Scrollable Form content -->
+            <div class="overflow-y-auto px-6 py-5 flex-1 space-y-6">
+                <form id="rule-form" class="space-y-6">
+                    <input type="hidden" id="rule-id">
+
+                    <!-- Select Medicine -->
+                    <div>
+                        <label class="block text-sm font-medium text-chume-brown mb-2">关联药品 <span
+                                class="text-chume-pink">*</span></label>
+                        <select id="rule-med-select" required
+                            class="w-full bg-chume-card border border-chume-brown/10 rounded-card px-4 py-3 outline-none focus:bg-white focus:ring-2 focus:ring-chume-orange/30 transition-all min-h-[44px] text-chume-brown appearance-none">
+                            <option value="">请选择药箱中的药品...</option>
+                            <!-- 动态注入 -->
+                        </select>
+                    </div>
+
+                    <!-- Dose -->
+                    <div>
+                        <label class="block text-sm font-medium text-chume-brown mb-2">单次剂量 <span
+                                class="text-chume-pink">*</span></label>
+                        <div class="relative">
+                            <input type="number" id="rule-dose" required step="any" inputmode="decimal"
+                                class="w-full bg-chume-card border border-chume-brown/10 rounded-card px-4 py-3 outline-none focus:bg-white focus:ring-2 focus:ring-chume-orange/30 transition-all min-h-[44px] text-chume-brown"
+                                placeholder="例如: 1.5">
+                            <div class="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none text-chume-brown-light font-medium"
+                                id="rule-dose-unit">粒</div>
+                        </div>
+                    </div>
+
+                    <!-- Segments (Period & Relation) -->
+                    <div class="space-y-3">
+                        <label class="block text-sm font-medium text-chume-brown mb-2">服药时段标识 <span
+                                class="text-chume-pink">*</span></label>
+                        <div class="grid grid-cols-4 gap-2">
+                            <button type="button"
+                                class="btn-period px-2 py-2.5 bg-white border border-chume-brown/10 rounded-xl text-xs text-chume-brown-light active:scale-95 transition-all text-center"
+                                data-val="早">早上</button>
+                            <button type="button"
+                                class="btn-period px-2 py-2.5 bg-white border border-chume-brown/10 rounded-xl text-xs text-chume-brown-light active:scale-95 transition-all text-center"
+                                data-val="中">中午</button>
+                            <button type="button"
+                                class="btn-period px-2 py-2.5 bg-white border border-chume-brown/10 rounded-xl text-xs text-chume-brown-light active:scale-95 transition-all text-center"
+                                data-val="晚">晚上</button>
+                            <button type="button"
+                                class="btn-period px-2 py-2.5 bg-white border border-chume-brown/10 rounded-xl text-xs text-chume-brown-light active:scale-95 transition-all text-center"
+                                data-val="睡前">睡前</button>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button type="button"
+                                class="btn-meal px-2 py-2 bg-white border border-chume-brown/10 rounded-xl text-xs text-chume-brown-light active:scale-95 transition-all text-center"
+                                data-val="餐前">餐前</button>
+                            <button type="button"
+                                class="btn-meal px-2 py-2 bg-white border border-chume-brown/10 rounded-xl text-xs text-chume-brown-light active:scale-95 transition-all text-center"
+                                data-val="随餐">随餐</button>
+                            <button type="button"
+                                class="btn-meal px-2 py-2 bg-white border border-chume-brown/10 rounded-xl text-xs text-chume-brown-light active:scale-95 transition-all text-center"
+                                data-val="餐后">餐后</button>
+                        </div>
+                    </div>
+
+
+                    <!-- Weekdays -->
+                    <div>
+                        <label class="block text-sm font-medium text-chume-brown mb-2">重复周期 (星期) <span
+                                class="text-chume-pink">*</span></label>
+                        <div class="flex justify-between items-center" id="week-selector">
+                            <button type="button"
+                                class="week-chip w-10 h-10 rounded-full flex items-center justify-center border border-chume-brown/10 text-sm font-bold text-chume-brown-light active:scale-90 transition-all"
+                                data-day="1">一</button>
+                            <button type="button"
+                                class="week-chip w-10 h-10 rounded-full flex items-center justify-center border border-chume-brown/10 text-sm font-bold text-chume-brown-light active:scale-90 transition-all"
+                                data-day="2">二</button>
+                            <button type="button"
+                                class="week-chip w-10 h-10 rounded-full flex items-center justify-center border border-chume-brown/10 text-sm font-bold text-chume-brown-light active:scale-90 transition-all"
+                                data-day="3">三</button>
+                            <button type="button"
+                                class="week-chip w-10 h-10 rounded-full flex items-center justify-center border border-chume-brown/10 text-sm font-bold text-chume-brown-light active:scale-90 transition-all"
+                                data-day="4">四</button>
+                            <button type="button"
+                                class="week-chip w-10 h-10 rounded-full flex items-center justify-center border border-chume-brown/10 text-sm font-bold text-chume-brown-light active:scale-90 transition-all"
+                                data-day="5">五</button>
+                            <button type="button"
+                                class="week-chip w-10 h-10 rounded-full flex items-center justify-center border border-chume-brown/10 text-sm font-bold text-chume-brown-light active:scale-90 transition-all"
+                                data-day="6">六</button>
+                            <button type="button"
+                                class="week-chip w-10 h-10 rounded-full flex items-center justify-center border border-chume-brown/10 text-sm font-bold text-chume-brown-light active:scale-90 transition-all"
+                                data-day="0">日</button>
+                        </div>
+                        <div class="mt-2 text-right">
+                            <button type="button" id="btn-everyday"
+                                class="text-xs font-semibold text-chume-orange tracking-wide cursor-pointer active:scale-95">每天</button>
+                        </div>
+                    </div>
+
+                    <!-- Date Range -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-chume-brown mb-1.5">开始日期 (起)</label>
+                            <input type="date" id="rule-start"
+                                class="w-full bg-chume-card border border-chume-brown/10 rounded-card px-3 py-3 outline-none focus:bg-white focus:ring-2 focus:ring-chume-orange/30 transition-all min-h-[44px] text-chume-brown text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-chume-brown mb-1.5">结束日期 (止/可选)</label>
+                            <input type="date" id="rule-end"
+                                class="w-full bg-chume-card border border-chume-brown/10 rounded-card px-3 py-3 outline-none focus:bg-white focus:ring-2 focus:ring-chume-orange/30 transition-all min-h-[44px] text-chume-brown text-sm">
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+
+            <!-- Action Area / Sticky Safe Area -->
+            <div class="p-6 pt-2 bg-white pb-8 border-t border-chume-brown/5 flex flex-col space-y-3">
+                <button id="btn-save-rule"
+                    class="w-full bg-chume-orange text-white rounded-card py-4 font-bold text-[17px] active:scale-95 transition-transform shadow-soft hover:bg-[#F59030]">
+                    保存服药规则
+                </button>
+                <button id="btn-delete-entire-rule"
+                    class="w-full text-chume-pink py-2 font-bold text-[14px] active:scale-95 transition-transform hidden">
+                    彻底删除该药品的所有排期
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Out of Stock Modal -->
+    <div id="out-of-stock-modal" class="fixed inset-0 z-[60] hidden flex-col justify-center items-center px-6">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" id="out-of-stock-backdrop"></div>
+
+        <!-- Modal Card -->
+        <div class="relative w-full max-w-[320px] bg-white rounded-card shadow-soft p-6 flex flex-col items-center transform transition-all scale-95 opacity-0"
+            id="out-of-stock-card">
+            <!-- Icon -->
+            <div
+                class="w-16 h-16 bg-chume-pink/20 text-chume-pink rounded-full flex items-center justify-center text-3xl mb-4">
+                <i class="fa-solid fa-pills"></i>
+            </div>
+
+            <!-- Title & Message -->
+            <h3 class="text-xl font-bold text-chume-brown mb-2 text-center font-title" id="out-of-stock-title">【阿莫西林】
+            </h3>
+            <p class="text-[15px] text-chume-brown-light text-center mb-6 leading-relaxed">药快吃完啦，换下一瓶吧！</p>
+
+            <!-- Action Buttons -->
+            <div class="w-full flex flex-col space-y-3">
+                <button id="btn-goto-add-med"
+                    class="w-full h-12 bg-chume-green/30 text-chume-brown rounded-card font-bold text-[16px] active:scale-95 transition-transform flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-plus text-sm"></i>
+                    <span>去录入新药</span>
+                </button>
+                <button id="btn-goto-change-rule"
+                    class="w-full h-12 bg-chume-card border border-chume-brown/10 text-chume-brown-light rounded-card font-bold text-[15px] active:scale-95 transition-transform">
+                    已录入，去换药
+                </button>
+            </div>
+
+            <!-- Close Button (Top Right) -->
+            <button id="btn-close-stock-modal"
+                class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-chume-brown-light hover:text-chume-brown active:scale-90 transition-transform">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 逻辑区块提取到外部 JS 中 -->
+    <script src="med-reminders.js"></script>
+</body>
+
+</html>

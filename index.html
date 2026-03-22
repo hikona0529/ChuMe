@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ChuMe 啾咪小手机</title>
+
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FontAwesome (CDN) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- 啾咪全局样式 -->
+    <link rel="stylesheet" href="global.css">
+
+    <!-- 统一 Tailwind 配置（啾咪设计系统） -->
+    <script src="tailwind-config.js"></script>
+</head>
+
+<body class="flex items-center justify-center min-h-screen min-h-[100dvh] bg-chume-cream sm:bg-[#E8DED4] sm:py-4 transition-colors duration-300">
+
+    <!-- 啾咪桌面主屏 -->
+    <div id="app-container" class="bg-gradient-to-b from-[#FFD4A0] via-[#FFBE7B] to-[#F8E8C1]
+                overflow-hidden">
+
+        <!-- 状态栏 -->
+        <div
+            class="absolute top-0 w-full h-12 flex justify-between items-center px-6 z-20 text-chume-brown font-semibold text-sm">
+            <div id="status-time" class="font-num">--:--</div>
+            <div class="flex items-center gap-2">
+                <i class="fas fa-signal text-xs"></i>
+                <i class="fas fa-wifi text-xs"></i>
+                <div class="flex items-center">
+                    <span class="mr-1 text-xs font-num">100%</span>
+                    <i class="fas fa-battery-full text-lg"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主内容区 -->
+        <div id="desktop-grid" class="absolute top-14 bottom-6 w-full px-6 flex flex-col gap-6">
+
+            <!-- 时钟小组件 -->
+            <div class="w-full mt-4 flex flex-col items-center text-chume-brown drop-shadow-sm animate-fade-in">
+                <!-- 日期 -->
+                <div id="widget-date" class="text-lg text-chume-brown/80 font-medium font-title">1月30日 星期五</div>
+                <!-- 时间 -->
+                <div id="widget-time" class="text-7xl font-light tracking-tight my-1 font-num text-chume-brown">12:00
+                </div>
+                <!-- 问候 -->
+                <div id="widget-greeting" class="text-lg font-medium opacity-80 font-title">下午好，体验者</div>
+            </div>
+
+            <!-- App 图标网格 -->
+            <div class="grid grid-cols-4 gap-x-4 gap-y-6">
+
+                <!-- App 1: 设置 -->
+                <a href="settings.html" class="flex flex-col items-center gap-1 group">
+                    <div
+                        class="w-16 h-16 bg-gradient-to-br from-[#E8DED4] to-[#C4B8AC] rounded-[1.2rem] shadow-soft flex items-center justify-center group-active:scale-95 transition-transform duration-200">
+                        <i class="fas fa-cog text-3xl text-chume-brown"></i>
+                    </div>
+                    <span class="text-xs text-chume-brown font-medium font-title">设置</span>
+                </a>
+
+                <!-- App 2: 我爱喝水 -->
+                <a href="water.html" class="flex flex-col items-center gap-1 group">
+                    <div
+                        class="w-16 h-16 bg-gradient-to-br from-[#A8D8EA] to-[#72BCD4] rounded-[1.2rem] shadow-soft flex items-center justify-center group-active:scale-95 transition-transform duration-200">
+                        <i class="fas fa-glass-water text-3xl text-white"></i>
+                    </div>
+                    <span class="text-xs text-chume-brown font-medium font-title">我爱喝水</span>
+                </a>
+
+                <!-- App 3: 身体数据 -->
+                <a href="bodydata.html" class="flex flex-col items-center gap-1 group">
+                    <div
+                        class="w-16 h-16 bg-gradient-to-br from-[#F2A19B] to-[#E8847C] rounded-[1.2rem] shadow-soft flex items-center justify-center group-active:scale-95 transition-transform duration-200">
+                        <i class="fas fa-heart-pulse text-3xl text-white"></i>
+                    </div>
+                    <span class="text-xs text-chume-brown font-medium font-title">身体数据</span>
+                </a>
+
+                <!-- App 4: 轻断食 -->
+                <a href="fasting.html" class="flex flex-col items-center gap-1 group">
+                    <div
+                        class="w-16 h-16 bg-gradient-to-br from-[#C8B6FF] to-[#A68BE5] rounded-[1.2rem] shadow-soft flex items-center justify-center group-active:scale-95 transition-transform duration-200">
+                        <i class="fas fa-stopwatch text-3xl text-white"></i>
+                    </div>
+                    <span class="text-xs text-chume-brown font-medium font-title">轻断食</span>
+                </a>
+
+                <!-- App 5: 记得吃药 -->
+                <a href="medicine.html" class="flex flex-col items-center gap-1 group">
+                    <div
+                        class="w-16 h-16 bg-gradient-to-br from-[#C8E6C9] to-[#A5D6A7] rounded-[1.2rem] shadow-soft flex items-center justify-center group-active:scale-95 transition-transform duration-200">
+                        <i class="fas fa-pills text-3xl text-white"></i>
+                    </div>
+                    <span class="text-xs text-chume-brown font-medium font-title">记得吃药</span>
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Core Logic -->
+    <script src="utils.js"></script>
+    <script src="index.js"></script>
+</body>
+
+</html>
