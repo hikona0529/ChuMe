@@ -132,7 +132,15 @@ function loadScripts() {
 
     const localStorage = createLocalStorage({
         chume_user_gender: '2',
-        old_only_key: 'stale-value'
+        old_only_key: 'stale-value',
+        chume_calendar_data_v1: JSON.stringify({
+            '2026-05-06': {
+                schedules: [{ id: 'cal-1', color: 2, text: '10:00 复诊' }],
+                memo: '早点休息'
+            }
+        }),
+        chume_calendar_color_labels_v1: JSON.stringify(['经期', '工作', '', '', '', '', '']),
+        chume_period_log_v1: JSON.stringify([{ date: '2026-05-01', type: 'start' }])
     });
     const document = createDocument();
     const dbState = createMockDb({
@@ -224,12 +232,40 @@ function loadScripts() {
 
     const exported = await sandbox.exportBackupData();
     assert.deepEqual(exported.indexedDB.water, [{ id: 'water-legacy', amount: 999 }], 'backup should include IndexedDB water data');
+    assert.equal(
+        exported.localStorage.chume_calendar_data_v1,
+        JSON.stringify({
+            '2026-05-06': {
+                schedules: [{ id: 'cal-1', color: 2, text: '10:00 复诊' }],
+                memo: '早点休息'
+            }
+        }),
+        'backup should include calendar schedule and memo data'
+    );
+    assert.equal(
+        exported.localStorage.chume_calendar_color_labels_v1,
+        JSON.stringify(['经期', '工作', '', '', '', '', '']),
+        'backup should include calendar color labels'
+    );
+    assert.equal(
+        exported.localStorage.chume_period_log_v1,
+        JSON.stringify([{ date: '2026-05-01', type: 'start' }]),
+        'backup should include period log data'
+    );
 
     await sandbox.restoreBackupData({
         version: 1,
         localStorage: {
             chume_user_gender: '1',
-            restored_only_key: 'new-value'
+            restored_only_key: 'new-value',
+            chume_calendar_data_v1: JSON.stringify({
+                '2026-05-07': {
+                    schedules: [{ id: 'cal-2', color: 4, text: '运动' }],
+                    memo: ''
+                }
+            }),
+            chume_calendar_color_labels_v1: JSON.stringify(['运动', '', '', '', '', '', '']),
+            chume_period_log_v1: JSON.stringify([{ date: '2026-05-02', type: 'end' }])
         },
         indexedDB: {
             water: [{ id: 'water-new', amount: 250 }],
@@ -243,6 +279,26 @@ function loadScripts() {
 
     assert.equal(localStorage.getItem('restored_only_key'), 'new-value', 'restore should write incoming localStorage keys');
     assert.equal(localStorage.getItem('old_only_key'), null, 'restore should clear stale localStorage keys before importing');
+    assert.equal(
+        localStorage.getItem('chume_calendar_data_v1'),
+        JSON.stringify({
+            '2026-05-07': {
+                schedules: [{ id: 'cal-2', color: 4, text: '运动' }],
+                memo: ''
+            }
+        }),
+        'restore should write calendar schedule and memo data'
+    );
+    assert.equal(
+        localStorage.getItem('chume_calendar_color_labels_v1'),
+        JSON.stringify(['运动', '', '', '', '', '', '']),
+        'restore should write calendar color labels'
+    );
+    assert.equal(
+        localStorage.getItem('chume_period_log_v1'),
+        JSON.stringify([{ date: '2026-05-02', type: 'end' }]),
+        'restore should write period log data'
+    );
     assert.deepEqual(dbState.dump().water, [{ id: 'water-new', amount: 250 }], 'restore should replace old IndexedDB water data');
 
     const legacyRun = loadScripts();

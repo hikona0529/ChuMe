@@ -12,6 +12,7 @@ window.addEventListener('load', () => {
     if (height) {
         document.getElementById('height-input').value = height;
     }
+    loadCalendarColorLabels();
 
     // 监听文件选择用于恢复备份
     const fileInput = document.getElementById('import-file');
@@ -53,6 +54,43 @@ window.addEventListener('load', () => {
     }
 });
 
+function getDefaultCalendarColorLabels() {
+    return ['', '', '', '', '', '', ''];
+}
+
+function getCalendarColorLabels() {
+    try {
+        const raw = localStorage.getItem('chume_calendar_color_labels_v1');
+        const parsed = raw ? JSON.parse(raw) : getDefaultCalendarColorLabels();
+        const labels = getDefaultCalendarColorLabels();
+        if (Array.isArray(parsed)) {
+            parsed.slice(0, 7).forEach((label, index) => {
+                labels[index] = label ? String(label) : '';
+            });
+        }
+        return labels;
+    } catch (error) {
+        console.error('读取日历颜色标签失败:', error);
+        return getDefaultCalendarColorLabels();
+    }
+}
+
+function loadCalendarColorLabels() {
+    const labels = getCalendarColorLabels();
+    labels.forEach((label, index) => {
+        const input = document.getElementById(`calendar-label-${index + 1}`);
+        if (input) input.value = label;
+    });
+}
+
+function saveCalendarColorLabels() {
+    const labels = getDefaultCalendarColorLabels().map((_, index) => {
+        const input = document.getElementById(`calendar-label-${index + 1}`);
+        return input ? input.value.trim() : '';
+    });
+    localStorage.setItem('chume_calendar_color_labels_v1', JSON.stringify(labels));
+}
+
 // Segmented Control JS
 function setSettingsGender(val) {
     const hidden = document.getElementById('gender-input');
@@ -86,6 +124,7 @@ function saveSettings() {
 
     if (genderInput) localStorage.setItem('chume_user_gender', genderInput);
     if (heightInput) localStorage.setItem('chume_user_height', parseFloat(heightInput));
+    saveCalendarColorLabels();
 
     showToast('设置已保存', 'success');
 
@@ -107,6 +146,7 @@ async function handleReset() {
             if (input) input.value = '';
             if (typeof setSettingsGender === 'function') setSettingsGender('');
             document.getElementById('height-input').value = '';
+            loadCalendarColorLabels();
 
             // 2. Show Toast
             showToast('重置成功', 'success');

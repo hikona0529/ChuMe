@@ -15,10 +15,14 @@ class CalendarComponent {
         this.titleId = options.titleId || 'cal-title';
         this.dataSource = options.dataSource; // 必须提供，返回Promise
         this.markLogic = options.markLogic || (() => null);
+        this.renderDayContent = options.renderDayContent || null;
+        this.cellClassResolver = options.cellClassResolver || null;
         this.onSelect = options.onSelect;
         this.selectedClass = options.selectedClass || 'bg-blue-500 text-white shadow-md hover:bg-blue-600';
         this.defaultClass = options.defaultClass || 'hover:bg-gray-100 text-slate-700 cursor-pointer';
         this.futureClass = options.futureClass || 'text-gray-300 pointer-events-none';
+        this.allowFuture = options.allowFuture || false;
+        this.mode = options.mode || 'compact';
         this.markSymbol = options.markSymbol || {
             default: '✓',
             success: '✓',
@@ -92,11 +96,22 @@ class CalendarComponent {
         for (let day = 1; day <= daysInMonth; day++) {
             const dateObj = new Date(year, month, day);
             const dateStr = this.formatDateString(year, month + 1, day);
-            const isFuture = dateObj > today;
+            const isFuture = !this.allowFuture && dateObj > today;
             const isSelected = this.selectedDate === dateStr;
+            const isToday = dateObj.getTime() === today.getTime();
+            const context = {
+                day,
+                dateObj,
+                dateStr,
+                isFuture,
+                isSelected,
+                isToday,
+                year,
+                month
+            };
             
             // 应用标记逻辑
-            const markInfo = this.markLogic(dateStr, data, { isSelected, isFuture });
+            const markInfo = this.markLogic(dateStr, data, context);
             
             // 确定样式类
             let cellClass = this.defaultClass;
@@ -104,6 +119,13 @@ class CalendarComponent {
                 cellClass = this.selectedClass;
             } else if (isFuture) {
                 cellClass = this.futureClass;
+            }
+
+            if (this.cellClassResolver) {
+                cellClass = this.cellClassResolver(dateStr, data, {
+                    ...context,
+                    baseClass: cellClass
+                }) || cellClass;
             }
             
             // 标记HTML
@@ -119,12 +141,25 @@ class CalendarComponent {
                     </div>
                 `;
             }
+
+            const customContent = this.renderDayContent
+                ? this.renderDayContent(dateStr, {
+                    ...context,
+                    markHtml,
+                    data
+                })
+                : null;
+
+            const innerHtml = customContent || `${day}${markHtml}`;
             
+            const sizeClass = this.mode === 'full'
+                ? 'min-h-[58px] w-full'
+                : 'w-8 h-9 mx-auto';
+
             html += `
                 <div data-date="${dateStr}" 
-                     class="relative w-8 h-9 mx-auto flex items-center justify-center rounded-lg text-sm font-medium transition-all ${cellClass}">
-                    ${day}
-                    ${markHtml}
+                     class="relative ${sizeClass} flex items-center justify-center rounded-lg text-sm font-medium transition-all ${cellClass}">
+                    ${innerHtml}
                 </div>
             `;
         }
@@ -166,6 +201,10 @@ class CalendarComponent {
             this.onSelect(dateStr, element);
         }
         this.selectedDate = dateStr;
+
+        if (this.mode === 'full' || !this.container) {
+            return;
+        }
         
         // 更新选中状态
         const cells = this.container.querySelectorAll('[data-date]');

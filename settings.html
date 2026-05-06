@@ -81,7 +81,66 @@
                 </div>
             </div>
 
-            <!-- Group 2: Backup & Restore -->
+            <!-- Group 2: Calendar Labels -->
+            <div class="bg-white rounded-card overflow-hidden shadow-card mb-6">
+                <div class="px-4 py-3 border-b border-chume-brown/10 bg-chume-cream/20">
+                    <div class="text-chume-brown font-semibold">打卡日历</div>
+                    <div class="text-xs text-chume-brown-light mt-0.5">行程颜色标签</div>
+                </div>
+                <div id="calendar-label-settings" class="divide-y divide-chume-brown/10">
+                    <div class="flex items-center px-4 py-3">
+                        <span class="w-4 h-4 rounded-full border border-chume-brown/20 shrink-0"
+                            style="background:#F7B7B2"></span>
+                        <input type="text" id="calendar-label-1"
+                            class="flex-1 ml-3 outline-none text-right placeholder-chume-brown-light bg-transparent text-chume-brown"
+                            placeholder="颜色 1">
+                    </div>
+                    <div class="flex items-center px-4 py-3">
+                        <span class="w-4 h-4 rounded-full border border-chume-brown/20 shrink-0"
+                            style="background:#F8DF8B"></span>
+                        <input type="text" id="calendar-label-2"
+                            class="flex-1 ml-3 outline-none text-right placeholder-chume-brown-light bg-transparent text-chume-brown"
+                            placeholder="颜色 2">
+                    </div>
+                    <div class="flex items-center px-4 py-3">
+                        <span class="w-4 h-4 rounded-full border border-chume-brown/20 shrink-0"
+                            style="background:#BFE3C0"></span>
+                        <input type="text" id="calendar-label-3"
+                            class="flex-1 ml-3 outline-none text-right placeholder-chume-brown-light bg-transparent text-chume-brown"
+                            placeholder="颜色 3">
+                    </div>
+                    <div class="flex items-center px-4 py-3">
+                        <span class="w-4 h-4 rounded-full border border-chume-brown/20 shrink-0"
+                            style="background:#BFC9EA"></span>
+                        <input type="text" id="calendar-label-4"
+                            class="flex-1 ml-3 outline-none text-right placeholder-chume-brown-light bg-transparent text-chume-brown"
+                            placeholder="颜色 4">
+                    </div>
+                    <div class="flex items-center px-4 py-3">
+                        <span class="w-4 h-4 rounded-full border border-chume-brown/20 shrink-0"
+                            style="background:#D9BFE8"></span>
+                        <input type="text" id="calendar-label-5"
+                            class="flex-1 ml-3 outline-none text-right placeholder-chume-brown-light bg-transparent text-chume-brown"
+                            placeholder="颜色 5">
+                    </div>
+                    <div class="flex items-center px-4 py-3">
+                        <span class="w-4 h-4 rounded-full border border-chume-brown/20 shrink-0"
+                            style="background:#F1C98E"></span>
+                        <input type="text" id="calendar-label-6"
+                            class="flex-1 ml-3 outline-none text-right placeholder-chume-brown-light bg-transparent text-chume-brown"
+                            placeholder="颜色 6">
+                    </div>
+                    <div class="flex items-center px-4 py-3">
+                        <span class="w-4 h-4 rounded-full border border-chume-brown/20 shrink-0"
+                            style="background:#9BDDDD"></span>
+                        <input type="text" id="calendar-label-7"
+                            class="flex-1 ml-3 outline-none text-right placeholder-chume-brown-light bg-transparent text-chume-brown"
+                            placeholder="颜色 7">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Group 3: Backup & Restore -->
             <div class="bg-white rounded-card overflow-hidden shadow-card mb-6">
                 <!-- Export Backup -->
                 <button onclick="exportGlobalData()"
@@ -100,7 +159,7 @@
             <!-- 隐藏的文件选择器 -->
             <input type="file" id="import-file" accept=".json" class="hidden">
 
-            <!-- Group 3: Reset -->
+            <!-- Group 4: Reset -->
             <div class="bg-white rounded-card overflow-hidden shadow-card">
                 <button id="btn-reset" onclick="handleReset()"
                     class="w-full text-center text-chume-pink py-3 active:bg-chume-card font-medium">
