@@ -65,7 +65,8 @@
     </style>
 </head>
 
-<body class="flex items-center justify-center min-h-screen min-h-[100dvh] bg-chume-cream sm:bg-[#E8DED4] sm:py-4 transition-colors duration-300">
+<body
+    class="flex items-center justify-center min-h-screen min-h-[100dvh] bg-chume-cream sm:bg-[#E8DED4] sm:py-4 transition-colors duration-300">
 
     <div id="app-container">
 
@@ -85,7 +86,7 @@
             </div>
 
             <!-- Period Tabs -->
-            <div class="mt-5 bg-chume-card p-1.5 rounded-[1.1rem] flex items-center w-full">
+            <div class="mt-5 bg-chume-card p-1.5 rounded-[1.1rem] flex items-center w-full board-tabs-container">
                 <button type="button"
                     class="board-tab-btn flex-1 py-1.5 text-[15px] font-bold text-chume-brown-light hover:text-chume-brown transition-all rounded-xl"
                     data-period="早">早</button>
@@ -186,7 +187,7 @@
                     <div class="space-y-3">
                         <label class="block text-sm font-medium text-chume-brown mb-2">服药时段标识 <span
                                 class="text-chume-pink">*</span></label>
-                        <div class="grid grid-cols-4 gap-2">
+                        <div class="grid grid-cols-4 gap-2 btn-period-container">
                             <button type="button"
                                 class="btn-period px-2 py-2.5 bg-white border border-chume-brown/10 rounded-xl text-xs text-chume-brown-light active:scale-95 transition-all text-center"
                                 data-val="早">早上</button>
@@ -200,7 +201,7 @@
                                 class="btn-period px-2 py-2.5 bg-white border border-chume-brown/10 rounded-xl text-xs text-chume-brown-light active:scale-95 transition-all text-center"
                                 data-val="睡前">睡前</button>
                         </div>
-                        <div class="grid grid-cols-3 gap-2">
+                        <div class="grid grid-cols-3 gap-2 btn-meal-container">
                             <button type="button"
                                 class="btn-meal px-2 py-2 bg-white border border-chume-brown/10 rounded-xl text-xs text-chume-brown-light active:scale-95 transition-all text-center"
                                 data-val="餐前">餐前</button>
@@ -218,7 +219,7 @@
                     <div>
                         <label class="block text-sm font-medium text-chume-brown mb-2">重复周期 (星期) <span
                                 class="text-chume-pink">*</span></label>
-                        <div class="flex justify-between items-center" id="week-selector">
+                        <div class="flex justify-between items-center week-chips-container" id="week-selector">
                             <button type="button"
                                 class="week-chip w-10 h-10 rounded-full flex items-center justify-center border border-chume-brown/10 text-sm font-bold text-chume-brown-light active:scale-90 transition-all"
                                 data-day="1">一</button>
@@ -321,6 +322,7 @@
 
     <!-- 逻辑区块提取到外部 JS 中 -->
     <script src="components.js"></script>
+    <script src="utils.js"></script>
     <script src="med-reminders-refactored.js"></script>
 </body>
 

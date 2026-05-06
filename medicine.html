@@ -110,10 +110,7 @@
                     class="w-10 h-10 flex items-center justify-center rounded-xl bg-chume-card text-chume-brown-light hover:text-chume-brown active:scale-95 transition-all outline-none">
                     <i class="fa-solid fa-plus text-[15px]"></i>
                 </button>
-                <button id="btn-mode-manage"
-                    class="w-10 h-10 flex items-center justify-center rounded-xl bg-chume-card text-chume-brown-light hover:text-chume-brown active:scale-95 transition-all outline-none">
-                    <i class="fa-solid fa-pencil text-[15px]"></i>
-                </button>
+
                 <button id="btn-mode-delete"
                     class="w-10 h-10 flex items-center justify-center rounded-xl bg-chume-card text-chume-brown-light hover:text-chume-brown active:scale-95 transition-all outline-none">
                     <i class="fa-solid fa-trash-can text-[15px]"></i>
@@ -149,7 +146,7 @@
         </div>
 
         <!-- Main Content (Medication List) -->
-        <main class="flex-1 overflow-y-auto px-5 py-5 space-y-4 bg-chume-card pb-28" id="med-list">
+        <main class="flex-1 overflow-y-auto px-5 py-5 space-y-4 bg-chume-card pb-28" id="med-board">
             <!-- JS will inject cards here -->
         </main>
 
@@ -196,7 +193,7 @@
 
             <!-- Scrollable Form Area -->
             <div class="overflow-y-auto px-6 py-5 flex-1 space-y-5">
-                <form id="med-form" class="space-y-5">
+                <form id="medicine-form" class="space-y-5">
                     <input type="hidden" id="field-id">
 
                     <!-- Segmented Control (Tabs) -->
@@ -292,7 +289,7 @@
                                 <div>
                                     <label
                                         class="block text-[11px] leading-tight font-medium text-chume-orange mb-1.5 opacity-90">先填写生产日期后再选择保质期，自动填到期时间！</label>
-                                    <div class="grid grid-cols-4 gap-2">
+                                    <div class="grid grid-cols-4 gap-2 shelf-life-chips-container">
                                         <button type="button"
                                             class="shelf-life-chip px-3 py-1.5 bg-white border border-chume-brown/10 rounded-full text-xs text-chume-brown-light active:scale-95 transition-all focus:outline-none"
                                             data-months="12">12个月</button>
@@ -317,8 +314,14 @@
                         <!-- Capacity & Stock -->
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-chume-brown mb-1.5">包装总量 <span
-                                        class="text-chume-pink">*</span></label>
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <label class="block text-sm font-medium text-chume-brown">包装总量 <span
+                                            class="text-chume-pink">*</span></label>
+                                    <button type="button" id="btn-ai-counter"
+                                        class="text-xs text-blue-500 font-medium active:opacity-50 transition-opacity">
+                                        📸 拍图数药
+                                    </button>
+                                </div>
                                 <input type="number" id="field-capacity" inputmode="decimal" required step="any"
                                     class="w-full bg-chume-card border border-chume-brown/10 rounded-card px-4 py-3.5 outline-none focus:bg-white focus:ring-2 focus:ring-chume-orange/30 transition-all min-h-[44px] text-chume-brown"
                                     placeholder="如: 120">
@@ -336,7 +339,7 @@
                         <div>
                             <label class="block text-sm font-medium text-chume-brown mb-1.5">计量单位 <span
                                     class="text-chume-pink">*</span></label>
-                            <div class="flex items-center space-x-2 overflow-x-auto pb-1 no-scrollbar">
+                            <div class="flex items-center space-x-2 overflow-x-auto pb-1 no-scrollbar unit-chips-container">
                                 <button type="button"
                                     class="unit-chip shrink-0 px-4 py-2 bg-white border border-chume-brown/10 rounded-full text-sm text-chume-brown-light active:scale-95 transition-all focus:outline-none font-medium">粒</button>
                                 <button type="button"
@@ -386,7 +389,32 @@
         </div>
     </div>
 
+    <!-- 拍图数药结果选择模态框 -->
+    <div id="ai-count-modal" class="fixed inset-0 z-[60] hidden">
+        <div id="ai-count-modal-backdrop" class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] max-w-[360px] bg-white rounded-3xl shadow-2xl overflow-hidden">
+            <!-- 标题 -->
+            <div class="px-6 pt-6 pb-3 text-center">
+                <h3 class="text-base font-bold text-chume-brown font-title">拍图数药结果</h3>
+                <p class="text-sm text-chume-brown-light mt-1">数量：<span id="ai-count-value" class="font-num font-bold text-chume-orange">0</span></p>
+                <p class="text-xs text-chume-brown-light mt-2">请选择将结果填入哪个字段</p>
+            </div>
+            <!-- 双按钮 -->
+            <div class="flex border-t border-chume-brown/10">
+                <button id="btn-fill-capacity"
+                    class="flex-1 py-4 text-sm font-semibold text-chume-orange active:bg-chume-card transition-colors border-r border-chume-brown/10">
+                    包装总量
+                </button>
+                <button id="btn-fill-stock"
+                    class="flex-1 py-4 text-sm font-semibold text-blue-500 active:bg-chume-card transition-colors">
+                    当前余量
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="components.js"></script>
+    <script src="utils.js"></script>
     <script src="medicine-refactored.js"></script>
 </body>
 

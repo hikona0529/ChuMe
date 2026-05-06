@@ -11,6 +11,10 @@
         let sumMetric = 'weight';
         let sumView = 'table';
 
+        // 记录导入时产生的冲突
+        let pendingConflicts = [];
+        let pendingNewData = { daily: [], weekly: [] };
+
         // Calendar State
         let calDate = new Date(); // Viewing date in calendar
         
@@ -18,6 +22,10 @@
         let bodyCalendar = null;
 
         // --- Core Funcs ---
+        function autoResizeTextarea(el) {
+            el.style.height = 'auto'; // Reset inner bound rendering scale mapping
+            el.style.height = Math.min(el.scrollHeight, 250) + 'px'; // Stretch seamlessly down scaling max lock bounds at ~250px overlay safe gap offset
+        }
         function getBodyDateStr() {
             return getDateStr(bodyViewOffset);
         }
@@ -48,28 +56,32 @@
             try {
                 // 检查组件库是否可用
                 if (typeof ChuMeComponents !== 'undefined' && ChuMeComponents.CalendarComponent) {
-                    bodyCalendar = new ChuMeComponents.CalendarComponent({
-                        target: '#calendar-card',
-                        onDateSelect: (dateStr) => {
-                            bodyPickDate(dateStr);
-                            closeCalendar();
-                        },
-                        getCurrentDate: () => {
-                            const curStr = getBodyDateStr();
-                            const parts = curStr.split('-');
-                            return new Date(parts[0], parts[1] - 1, parts[2]);
-                        },
-                        getMarkedDates: () => {
-                            const historyType = currentTab === 'weekly' ? 'weekly' : 'daily';
-                            const history = getHistory(historyType);
-                            return new Set(history.map(r => r.date));
-                        },
-                        i18n: {
-                            monthYear: (y, m) => `${y}年 ${m + 1}月`,
-                            today: '今天'
-                        },
-                        dateFormat: 'YYYY-MM-DD'
-                    });
+                    if (!bodyCalendar) {
+                        bodyCalendar = new ChuMeComponents.CalendarComponent({
+                            containerId: 'cal-days',
+                            titleId: 'cal-title',
+                            dataSource: async (year, month) => {
+                                const historyType = currentTab === 'weekly' ? 'weekly' : 'daily';
+                                const history = getHistory(historyType);
+                                const dailyData = {};
+                                history.forEach(r => { dailyData[r.date] = true; });
+                                return dailyData;
+                            },
+                            markLogic: (dateStr, data, { isSelected }) => {
+                                if (!data[dateStr]) return null;
+                                return {
+                                    symbol: '✓',
+                                    colorClass: isSelected ? 'text-white' : 'text-green-500',
+                                    sizeStyle: 'text-[10px]'
+                                };
+                            },
+                            onSelect: (dateStr) => {
+                                bodyPickDate(dateStr);
+                                closeCalendar();
+                            },
+                            selectedClass: 'bg-chume-orange text-white shadow-md hover:bg-chume-orange/80'
+                        });
+                    }
                     return true;
                 }
             } catch (e) {
@@ -79,18 +91,20 @@
         }
 
         function openCalendar() {
-            const modal = document.getElementById('calendar-modal');
-            const card = document.getElementById('calendar-card');
-
             // 尝试使用组件库
             const useComponent = initBodyCalendar();
             
             if (useComponent && bodyCalendar) {
-                // 使用组件库的模态框
-                ChuMeComponents.ModalManager.show(modal);
+                // 同步当前选中的日期
+                const curStr = getBodyDateStr();
+                const parts = curStr.split('-');
+                calDate = new Date(parts[0], parts[1] - 1, parts[2]);
+
+                // 使用组件库的模态框，传递字符串 ID 而不是 DOM 元素
+                ChuMeComponents.ModalManager.show('calendar-modal');
                 
                 // 渲染日历
-                bodyCalendar.render();
+                bodyCalendar.render(calDate, curStr);
             } else {
                 // 回退到原有逻辑
                 openCalendarLegacy();
@@ -98,11 +112,11 @@
         }
 
         function closeCalendar() {
-            const modal = document.getElementById('calendar-modal');
             const useComponent = (typeof ChuMeComponents !== 'undefined' && ChuMeComponents.ModalManager);
             
             if (useComponent) {
-                ChuMeComponents.ModalManager.hide(modal);
+                // 传递字符串 ID
+                ChuMeComponents.ModalManager.hide('calendar-modal');
             } else {
                 closeCalendarLegacy();
             }
@@ -114,8 +128,8 @@
 
         function calChangeMonth(offset) {
             if (bodyCalendar) {
-                bodyCalendar.changeMonth(offset);
-                bodyCalendar.render();
+                if (offset > 0) bodyCalendar.nextMonth();
+                else bodyCalendar.prevMonth();
             } else {
                 calChangeMonthLegacy(offset);
             }
@@ -249,11 +263,12 @@
         }
 
         function calcWeeklyStats() {
-            const wKg = parseFloat(document.getElementById('in-weight-weekly-kg').value);
-            const waist = parseFloat(document.getElementById('in-waist').value);
-            const hip = parseFloat(document.getElementById('in-hip').value);
-            const fatKg = parseFloat(document.getElementById('in-fat').value);
-            let height = parseFloat(localStorage.getItem('chume_user_height')) || parseFloat(document.getElementById('in-height').value);
+            const wKg = parseFloat(document.getElementById('in-weight-weekly-kg')?.value);
+            const waist = parseFloat(document.getElementById('in-waist')?.value);
+            const hip = parseFloat(document.getElementById('in-hip')?.value);
+            const fatKg = parseFloat(document.getElementById('in-fat')?.value);
+            const heightEl = document.getElementById('in-height');
+            let height = parseFloat(localStorage.getItem('chume_user_height')) || (heightEl ? parseFloat(heightEl.value) : null);
 
             document.getElementById('calc-bmi').innerText = (wKg && height) ? (wKg / ((height / 100) ** 2)).toFixed(1) : "-";
             document.getElementById('calc-whr').innerText = (waist && hip) ? (waist / hip).toFixed(2) : "-";
@@ -346,20 +361,25 @@
                         const badge = document.getElementById(badgeId);
                         if (badge) {
                             if (diff === 0) {
-                                badge.innerHTML = '<span class="text-gray-400 font-bold">-</span>';
+                                badge.innerHTML = '<span class="text-gray-400">-</span>';
                                 badge.className = `ios-input-status neutral`;
                             } else {
-                                const isLowerGood = BODY_CFG.lowerGood.includes(key);
-                                const isGood = (isLowerGood && diff < 0) || (!isLowerGood && diff > 0);
-                                const icon = diff > 0 ? '<i class="fas fa-caret-up"></i>' : '<i class="fas fa-caret-down"></i>';
+                                let isGood;
+                                if (key === 'ketone') {
+                                    isGood = diff > 0 ? (cVal <= 3) : true;
+                                } else {
+                                    const isLowerGood = BODY_CFG.lowerGood.includes(key);
+                                    isGood = (isLowerGood && diff < 0) || (!isLowerGood && diff > 0);
+                                }
+                                const icon = diff > 0 ? '↑' : '↓';
 
                                 let diffText = Math.abs(diff).toFixed(1);
                                 if (key === 'weight') {
                                     // Show in Jin
-                                    diffText = (Math.abs(diff) * 2).toFixed(1) + ' <span class="text-[0.6rem]">斤</span>';
+                                    diffText = (Math.abs(diff) * 2).toFixed(1) + '<span class="text-[0.6rem] ml-0.5">斤</span>';
                                 }
 
-                                badge.innerHTML = `${icon}<span>${diffText}</span>`;
+                                badge.innerHTML = `<span>${diffText}${icon}</span>`;
                                 badge.className = `ios-input-status ${isGood ? 'good' : 'bad'}`;
                             }
                         }
@@ -376,18 +396,18 @@
                     const badge = document.getElementById('diff-bp');
                     if (badge) {
 
-                        const hColor = diffH > 0 ? 'text-ios-red' : (diffH < 0 ? 'text-ios-green' : 'text-gray-400');
-                        const lColor = diffL > 0 ? 'text-ios-red' : (diffL < 0 ? 'text-ios-green' : 'text-gray-400');
+                        const hColor = diffH > 0 ? 'text-[#FF3B30]' : (diffH < 0 ? 'text-[#34C759]' : 'text-gray-400');
+                        const lColor = diffL > 0 ? 'text-[#FF3B30]' : (diffL < 0 ? 'text-[#34C759]' : 'text-gray-400');
 
-                        // Use flex-1 to center each part in the 88px space
-                        const hHtml = `<span class="${hColor} flex-1 text-center">H${diffH !== 0 ? Math.abs(diffH) + (diffH > 0 ? '↑' : '↓') : '-'}</span>`;
+                        // Use natural layout without flex-1 to cluster them together
+                        const hHtml = `<span class="${hColor} whitespace-nowrap px-1">${diffH !== 0 ? Math.abs(diffH) + (diffH > 0 ? '↑' : '↓') : '-'}</span>`;
                         let lHtml = '';
                         if (record.data['bp-low'] && prevRecord.data['bp-low']) {
-                            lHtml = `<span class="${lColor} flex-1 text-center ml-1">L${diffL !== 0 ? Math.abs(diffL) + (diffL > 0 ? '↑' : '↓') : '-'}</span>`;
+                            lHtml = `<span class="${lColor} whitespace-nowrap px-1">${diffL !== 0 ? Math.abs(diffL) + (diffL > 0 ? '↑' : '↓') : '-'}</span>`;
                         }
 
-                        badge.innerHTML = `<div class="flex items-center justify-center w-full text-[10px] font-bold leading-none px-1">${hHtml}${lHtml}</div>`;
-                        badge.className = `ios-input-status border-transparent bg-gray-50`;
+                        badge.innerHTML = `<div class="flex flex-row items-center justify-center font-normal leading-tight mx-auto">${hHtml}${lHtml}</div>`;
+                        badge.className = `ios-input-status`;
                     }
                 }
             }
@@ -415,7 +435,10 @@
                     }
                 });
                 const noteEl = document.getElementById(`in-note-${type}`);
-                if (noteEl) noteEl.value = record.note || "";
+                if (noteEl) {
+                    noteEl.value = record.note || "";
+                    if(typeof autoResizeTextarea === 'function') autoResizeTextarea(noteEl);
+                }
                 if (type === 'weekly') calcWeeklyStats();
             }
 
@@ -458,20 +481,86 @@
             container.innerHTML = "";
             if (!history.length) { container.innerHTML = `<div class="flex flex-col items-center justify-center py-20 text-gray-300"><i class="fas fa-folder-open text-4xl mb-3"></i><p class="text-sm font-medium">暂无数据</p></div>`; return; }
             if (sumView === 'table') {
-                let html = `<div class="overflow-hidden rounded-xl bg-white"><table class="w-full text-sm text-left"><thead class="text-xs text-gray-400 font-semibold bg-gray-50 uppercase tracking-wider"><tr><th class="px-5 py-3">日期</th><th class="px-5 py-3 text-right">数值</th></tr></thead><tbody class="divide-y divide-gray-50">`;
-                history.forEach(r => html += `<tr class="bg-white hover:bg-blue-50/30 transition-colors"><td class="px-5 py-4 font-medium text-gray-700">${r.date}</td><td class="px-5 py-4 text-right font-medium text-black">${r.data[sumMetric]}</td></tr>`);
+                let html = `<div class="overflow-hidden rounded-xl bg-chume-card"><table class="w-full text-sm text-center"><thead class="text-xs text-chume-brown-light font-semibold border-b border-chume-brown/10 uppercase tracking-wider"><tr><th class="px-4 py-3 text-center">日期</th><th class="px-4 py-3 text-center">数值</th><th class="px-4 py-3 text-center w-28">变化</th></tr></thead><tbody class="divide-y divide-chume-brown/5">`;
+                history.forEach((r, idx) => {
+                    let diffHtml = '<span class="text-gray-400">-</span>';
+                    const prevRecord = history[idx + 1];
+                    let displayVal = r.data[sumMetric];
+                    if (sumMetric === 'weight') {
+                        displayVal = (displayVal * 2).toFixed(1) + '<span class="text-[0.65rem] ml-0.5 text-chume-brown-light font-title">斤</span>';
+                    }
+
+                    if (prevRecord && prevRecord.data[sumMetric] !== undefined) {
+                        const diff = r.data[sumMetric] - prevRecord.data[sumMetric];
+                        if (diff !== 0) {
+                            let isGood;
+                            if (sumMetric === 'ketone') {
+                                isGood = diff > 0 ? (r.data[sumMetric] <= 3) : true;
+                            } else {
+                                const isLowerGood = BODY_CFG.lowerGood.includes(sumMetric);
+                                isGood = (isLowerGood && diff < 0) || (!isLowerGood && diff > 0);
+                            }
+                            const colorClass = isGood ? 'text-[#34C759]' : 'text-[#FF3B30]';
+                            const icon = diff > 0 ? '↑' : '↓';
+                            let diffText = Math.abs(diff).toFixed(1);
+                            if (sumMetric === 'weight') diffText = (Math.abs(diff) * 2).toFixed(1) + '<span class="text-[0.6rem] ml-0.5">斤</span>';
+                            diffHtml = `<span class="${colorClass} font-medium">${diffText}${icon}</span>`;
+                        }
+                    }
+                    html += `<tr class="hover:bg-chume-cream transition-colors"><td class="px-4 py-4 text-center font-medium text-chume-brown">${r.date}</td><td class="px-4 py-4 text-center font-medium text-chume-brown">${displayVal}</td><td class="px-4 py-4 text-center">${diffHtml}</td></tr>`;
+                });
                 html += "</tbody></table></div>";
                 container.innerHTML = html;
             } else {
                 const max = Math.max(...history.map(r => r.data[sumMetric])) || 100;
-                let html = `<div class="flex items-end justify-center gap-3 h-[200px] border-b border-gray-100 pb-2 pt-8 px-4">`;
+                let html = `<div class="bg-chume-card rounded-card p-4"><div class="flex items-end justify-center gap-3 h-[200px] border-b border-chume-brown/10 pb-2 pt-8 px-4">`;
                 history.slice(0, 7).reverse().forEach(r => {
                     const val = r.data[sumMetric]; const h = (val / max) * 150;
-                    html += `<div class="relative w-8 bg-chume-orange rounded-t-md transition-all group hover:bg-chume-orange/80 shadow-sm" style="height:${h}px"><span class="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-2 py-1 rounded-[6px] text-[10px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-lg">${val}</span><span class="absolute bottom-[-24px] left-1/2 -translate-x-1/2 text-[9px] text-gray-400 font-medium whitespace-nowrap">${r.date.slice(5)}</span></div>`;
+                    let displayVal = sumMetric === 'weight' ? (val * 2).toFixed(1) : val;
+                    html += `<div class="relative w-8 bg-chume-orange rounded-t-md transition-all group hover:bg-chume-orange/80 shadow-sm" style="height:${h}px"><span class="absolute -top-8 left-1/2 -translate-x-1/2 bg-chume-brown text-white px-2 py-1 rounded-[6px] text-[10px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-md">${displayVal}</span><span class="absolute bottom-[-24px] left-1/2 -translate-x-1/2 text-[9px] text-chume-brown-light font-medium whitespace-nowrap">${r.date.slice(5)}</span></div>`;
                 });
-                html += "</div><p class='text-center text-[10px] font-semibold text-gray-300 mt-8 tracking-widest uppercase'>最近7天趋势</p>";
+                html += "</div><p class='text-center text-[10px] font-semibold text-chume-brown-light mt-8 tracking-widest uppercase'>最近7天趋势</p></div>";
                 container.innerHTML = html;
             }
+        }
+
+        let profileGender = '';
+        function checkProfileModal() {
+            const h = localStorage.getItem('chume_user_height');
+            const g = localStorage.getItem('chume_user_gender');
+            if (!h || !g) {
+                if (typeof ChuMeComponents !== 'undefined' && ChuMeComponents.ChipSelector) {
+                    new ChuMeComponents.ChipSelector({
+                        containerSelector: '#chip-gender',
+                        chipSelector: 'button',
+                        singleSelect: true,
+                        selectedClass: 'bg-chume-brown text-white border-chume-brown',
+                        deselectedClass: 'bg-white text-chume-brown border-chume-brown/10',
+                        onSelect: (el, val) => profileGender = val
+                    });
+                }
+                setTimeout(() => {
+                    ChuMeComponents.ModalManager.show('profile-modal', {closeOnEsc: false, closeOnBackdropClick: false});
+                }, 100);
+            }
+        }
+
+        function saveInitialProfile() {
+            const h = document.getElementById('profile-height').value;
+            if (!h || parseFloat(h) < 50 || parseFloat(h) > 250) {
+                if(typeof showToast === 'function') showToast("请填写正确的身高哦", "error");
+                else alert("请填写正确的身高");
+                return;
+            }
+            if (!profileGender) {
+                if(typeof showToast === 'function') showToast("请选择性别", "error");
+                else alert("请选择性别");
+                return;
+            }
+            localStorage.setItem('chume_user_height', parseFloat(h));
+            localStorage.setItem('chume_user_gender', profileGender);
+            ChuMeComponents.ModalManager.hide('profile-modal');
+            calcWeeklyStats();
         }
 
         // 初始化组件
@@ -480,6 +569,382 @@
                 // 增强DOM操作
                 ChuMeComponents.DOMUtils.enhanceDOM();
             }
+            checkProfileModal();
+
+            // Backup & Restore import listener
+            const fileInput = document.getElementById('import-body-file');
+            if (fileInput) {
+                fileInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        try {
+                            const importedData = JSON.parse(event.target.result);
+                            
+                            if (importedData.app !== 'chume_bodydata') {
+                                if (typeof showToast === 'function') showToast('文件格式不匹配', 'error');
+                                fileInput.value = '';
+                                return;
+                            }
+                            
+                            const localDaily = JSON.parse(localStorage.getItem('chume_log_daily_v13') || "[]");
+                            const localWeekly = JSON.parse(localStorage.getItem('chume_log_weekly_v13') || "[]");
+                            
+                            // Map existing items
+                            const dailyMap = new Map(localDaily.map(r => [r.date, r]));
+                            const weeklyMap = new Map(localWeekly.map(r => [r.date, r]));
+                            
+                            pendingConflicts = [];
+                            pendingNewData = { daily: [], weekly: [] };
+                            
+                            function isEqualData(d1, d2) {
+                                const k1 = Object.keys(d1 || {}); const k2 = Object.keys(d2 || {});
+                                if (k1.length !== k2.length) return false;
+                                for (let k of k1) { if (d1[k] !== d2[k]) return false; }
+                                return true;
+                            }
+
+                            // 合并 Daily
+                            if (Array.isArray(importedData.daily)) {
+                                importedData.daily.forEach(r => {
+                                    if (!dailyMap.has(r.date)) {
+                                        pendingNewData.daily.push(r);
+                                    } else {
+                                        const locR = dailyMap.get(r.date);
+                                        const locData = locR.data || {};
+                                        const impData = r.data || {};
+                                        const locNote = locR.note || '';
+                                        const impNote = r.note || '';
+                                        if (!isEqualData(locData, impData) || locNote !== impNote) {
+                                            pendingConflicts.push({
+                                                type: 'daily',
+                                                date: r.date,
+                                                localData: locData,
+                                                importData: impData,
+                                                localNote: locNote,
+                                                importNote: impNote
+                                            });
+                                        }
+                                    }
+                                });
+                            }
+                            
+                            // 合并 Weekly
+                            if (Array.isArray(importedData.weekly)) {
+                                importedData.weekly.forEach(r => {
+                                    if (!weeklyMap.has(r.date)) {
+                                        pendingNewData.weekly.push(r);
+                                    } else {
+                                        const locR = weeklyMap.get(r.date);
+                                        const locData = locR.data || {};
+                                        const impData = r.data || {};
+                                        const locNote = locR.note || '';
+                                        const impNote = r.note || '';
+                                        if (!isEqualData(locData, impData) || locNote !== impNote) {
+                                            pendingConflicts.push({
+                                                type: 'weekly',
+                                                date: r.date,
+                                                localData: locData,
+                                                importData: impData,
+                                                localNote: locNote,
+                                                importNote: impNote
+                                            });
+                                        }
+                                    }
+                                });
+                            }
+                            
+                            if (pendingConflicts.length > 0) {
+                                showConflictModal();
+                            } else {
+                                // 没有冲突直接执行原版纯增量逻辑
+                                let changed = false;
+                                if (pendingNewData.daily.length > 0) {
+                                    localDaily.push(...pendingNewData.daily);
+                                    localDaily.sort((a, b) => new Date(b.date) - new Date(a.date));
+                                    localStorage.setItem('chume_log_daily_v13', JSON.stringify(localDaily));
+                                    changed = true;
+                                }
+                                if (pendingNewData.weekly.length > 0) {
+                                    localWeekly.push(...pendingNewData.weekly);
+                                    localWeekly.sort((a, b) => new Date(b.date) - new Date(a.date));
+                                    localStorage.setItem('chume_log_weekly_v13', JSON.stringify(localWeekly));
+                                    changed = true;
+                                }
+                                
+                                if (changed) {
+                                    if (typeof showToast === 'function') showToast(`成功导入 ${pendingNewData.daily.length}条每日，${pendingNewData.weekly.length}条每周记录`, 'success');
+                                    updateBodyUI();
+                                } else {
+                                    if (typeof showToast === 'function') showToast('没有任何新数据', 'info');
+                                }
+                            }
+                            
+                        } catch (err) {
+                            console.error('Import parse error:', err);
+                            if (typeof showToast === 'function') showToast('解析失败或格式错误', 'error');
+                        }
+                        fileInput.value = '';
+                    };
+                    
+                    reader.onerror = function() {
+                        if (typeof showToast === 'function') showToast('读取文件失败', 'error');
+                        fileInput.value = '';
+                    };
+                    
+                    reader.readAsText(file);
+                });
+            }
         });
+
+        function showConflictModal() {
+            const modal = document.getElementById('conflict-modal');
+            const card = document.getElementById('conflict-card');
+            if (!modal) return;
+            
+            document.getElementById('conflict-count').innerText = pendingConflicts.length;
+            const listEl = document.getElementById('conflict-list');
+            
+            let html = '';
+            pendingConflicts.forEach((conf, idx) => {
+                const typeName = conf.type === 'daily' ? '每日' : '每周';
+                
+                let diffLocal = [];
+                let diffImport = [];
+                let bpProcessed = false;
+                const allKeys = new Set([...Object.keys(conf.localData || {}), ...Object.keys(conf.importData || {})]);
+                
+                allKeys.forEach(k => {
+                    if ((k === 'bp-high' || k === 'bp-low') && !bpProcessed) {
+                        const lH = conf.localData['bp-high']; const lL = conf.localData['bp-low'];
+                        const iH = conf.importData['bp-high']; const iL = conf.importData['bp-low'];
+                        if (lH !== iH || lL !== iL) {
+                            diffLocal.push(`血压:<span class="font-bold text-chume-orange">${lH || '-'}/${lL || '-'} mmHg</span>`);
+                            diffImport.push(`血压:<span class="font-bold text-chume-orange">${iH || '-'}/${iL || '-'} mmHg</span>`);
+                        }
+                        bpProcessed = true;
+                    } else if (k !== 'bp-high' && k !== 'bp-low') {
+                        const lV = conf.localData[k];
+                        const iV = conf.importData[k];
+                        if (lV !== iV) {
+                            const dict = {weight:'体重',glucose:'血糖',ketone:'血酮',ua:'尿酸',waist:'腰围',hip:'臀围',fat:'体脂',muscle:'肌肉'};
+                            let label = dict[k] || k;
+                            let unit = '';
+                            if (k === 'weight' || k === 'muscle') unit = 'kg';
+                            else if (k === 'glucose' || k === 'ketone') unit = 'mmol/L';
+                            else if (k === 'ua') unit = 'umol/L';
+                            else if (k === 'waist' || k === 'hip') unit = 'cm';
+                            else if (k === 'fat') unit = '%';
+                            
+                            diffLocal.push(`${label}:<span class="font-bold text-chume-orange">${lV !== undefined ? lV + unit : '-'}</span>`);
+                            diffImport.push(`${label}:<span class="font-bold text-chume-orange">${iV !== undefined ? iV + unit : '-'}</span>`);
+                        }
+                    }
+                });
+
+                if (conf.localNote !== conf.importNote) {
+                    diffLocal.push(`备注:<span class="font-bold text-chume-orange">${conf.localNote || '无'}</span>`);
+                    diffImport.push(`备注:<span class="font-bold text-chume-orange">${conf.importNote || '无'}</span>`);
+                }
+
+                let localVal = diffLocal.join(' <span class="text-chume-brown-light px-1 shrink-0">|</span> ') || '无差异';
+                let importVal = diffImport.join(' <span class="text-chume-brown-light px-1 shrink-0">|</span> ') || '无差异';
+
+                html += `
+                <div class="bg-gray-50 rounded-xl p-3 flex justify-between items-center shadow-sm border border-black/5 gap-3">
+                    <div class="flex-1 min-w-0">
+                        <div class="text-[13px] font-bold text-chume-brown flex items-center gap-1.5 font-num">
+                            <span class="bg-chume-orange/10 text-chume-orange px-1.5 py-0.5 rounded text-[10px] leading-none">${typeName}</span>
+                            ${conf.date}
+                        </div>
+                        <div class="text-[11px] text-chume-brown-light mt-1.5 flex flex-col gap-1.5 font-num break-all">
+                            <div class="leading-tight flex"><span class="inline-block w-7 shrink-0 text-gray-400">本地:</span> <span class="text-chume-brown leading-[1.3]">${localVal}</span></div>
+                            <div class="leading-tight flex"><span class="inline-block w-7 shrink-0 text-gray-400">导入:</span> <span class="text-chume-brown leading-[1.3]">${importVal}</span></div>
+                        </div>
+                    </div>
+                    <div class="shrink-0 flex items-center bg-gray-200/80 rounded-full p-1 cursor-pointer w-[100px] h-[28px] relative transition-colors select-none" onclick="toggleConflict(${idx})">
+                        <div id="slider-bg-${idx}" class="absolute left-1 top-1 w-[44px] h-[20px] bg-white rounded-full shadow-sm transition-transform duration-300"></div>
+                        <div id="label-local-${idx}" class="relative z-10 w-1/2 text-center text-[11px] font-bold text-chume-brown transition-colors leading-[20px]">本地</div>
+                        <div id="label-import-${idx}" class="relative z-10 w-1/2 text-center text-[11px] font-bold text-gray-400 transition-colors leading-[20px]">导入</div>
+                        <input type="hidden" id="conflict-choice-${idx}" class="conflict-choice" value="local">
+                    </div>
+                </div>`;
+            });
+            listEl.innerHTML = html;
+            
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                if (card) {
+                    card.classList.remove('translate-y-full', 'sm:scale-95');
+                    card.classList.add('translate-y-0', 'sm:scale-100');
+                }
+            }, 10);
+        }
+
+        window.toggleConflict = function(idx) {
+            const input = document.getElementById(`conflict-choice-${idx}`);
+            const slider = document.getElementById(`slider-bg-${idx}`);
+            const lLocal = document.getElementById(`label-local-${idx}`);
+            const lImport = document.getElementById(`label-import-${idx}`);
+            if (!input) return;
+            if (input.value === 'local') {
+                input.value = 'import';
+                slider.style.transform = 'translateX(48px)';
+                lLocal.className = "relative z-10 w-1/2 text-center text-[11px] font-bold text-gray-400 transition-colors leading-[20px]";
+                lImport.className = "relative z-10 w-1/2 text-center text-[11px] font-bold text-chume-orange transition-colors leading-[20px]";
+            } else {
+                input.value = 'local';
+                slider.style.transform = 'translateX(0)';
+                lLocal.className = "relative z-10 w-1/2 text-center text-[11px] font-bold text-chume-brown transition-colors leading-[20px]";
+                lImport.className = "relative z-10 w-1/2 text-center text-[11px] font-bold text-gray-400 transition-colors leading-[20px]";
+            }
+        };
+
+        function closeConflictModal() {
+            const modal = document.getElementById('conflict-modal');
+            const card = document.getElementById('conflict-card');
+            if (!modal) return;
+            
+            modal.classList.add('opacity-0');
+            if (card) {
+                card.classList.remove('translate-y-0', 'sm:scale-100');
+                card.classList.add('translate-y-full', 'sm:scale-95');
+            }
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                pendingConflicts = []; // clear
+            }, 300);
+
+            pendingNewData = { daily: [], weekly: [] };
+        }
+
+        function overrideAllConflicts() {
+            document.querySelectorAll('.conflict-choice').forEach(input => {
+                if (input.value === 'local') {
+                    const idx = input.id.replace('conflict-choice-', '');
+                    window.toggleConflict(idx);
+                }
+            });
+        }
+
+        function confirmConflictMerge() {
+            const localDaily = JSON.parse(localStorage.getItem('chume_log_daily_v13') || "[]");
+            const localWeekly = JSON.parse(localStorage.getItem('chume_log_weekly_v13') || "[]");
+            
+            let dailyResolved = 0;
+            let weeklyResolved = 0;
+            
+            // Execute conflicts
+            pendingConflicts.forEach((conf, idx) => {
+                const select = document.getElementById(`conflict-choice-${idx}`);
+                if (select && select.value === 'import') {
+                    if (conf.type === 'daily') {
+                        const targetIdx = localDaily.findIndex(r => r.date === conf.date);
+                        if (targetIdx >= 0) {
+                            localDaily[targetIdx].data = conf.importData;
+                            if (conf.importNote) localDaily[targetIdx].note = conf.importNote;
+                            dailyResolved++;
+                        }
+                    } else {
+                        const targetIdx = localWeekly.findIndex(r => r.date === conf.date);
+                        if (targetIdx >= 0) {
+                            localWeekly[targetIdx].data = conf.importData;
+                            if (conf.importNote) localWeekly[targetIdx].note = conf.importNote;
+                            weeklyResolved++;
+                        }
+                    }
+                }
+            });
+            
+            // Execute pending new (pure inserts)
+            if (pendingNewData.daily.length > 0) {
+                localDaily.push(...pendingNewData.daily);
+                dailyResolved += pendingNewData.daily.length;
+            }
+            if (pendingNewData.weekly.length > 0) {
+                localWeekly.push(...pendingNewData.weekly);
+                weeklyResolved += pendingNewData.weekly.length;
+            }
+            
+            if (dailyResolved > 0) {
+                localDaily.sort((a, b) => new Date(b.date) - new Date(a.date));
+                localStorage.setItem('chume_log_daily_v13', JSON.stringify(localDaily));
+            }
+            if (weeklyResolved > 0) {
+                localWeekly.sort((a, b) => new Date(b.date) - new Date(a.date));
+                localStorage.setItem('chume_log_weekly_v13', JSON.stringify(localWeekly));
+            }
+            
+            // Cleanup visually
+            const modal = document.getElementById('conflict-modal');
+            const card = document.getElementById('conflict-card');
+            if (modal) {
+                modal.classList.add('opacity-0');
+                if (card) {
+                    card.classList.remove('translate-y-0', 'sm:scale-100');
+                    card.classList.add('translate-y-full', 'sm:scale-95');
+                }
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    pendingConflicts = [];
+                    pendingNewData = { daily: [], weekly: [] };
+                    
+                    if (typeof showToast === 'function') showToast('合并完成', 'success');
+                    updateBodyUI();
+                }, 300);
+            }
+        }
+
+        // --- Backup & Restore (Import/Export) export handlers ---
+        function exportBodyData() {
+            try {
+                const dailyData = JSON.parse(localStorage.getItem('chume_log_daily_v13') || "[]");
+                const weeklyData = JSON.parse(localStorage.getItem('chume_log_weekly_v13') || "[]");
+                
+                const exportObj = {
+                    app: 'chume_bodydata',
+                    timestamp: Date.now(),
+                    daily: dailyData,
+                    weekly: weeklyData
+                };
+                
+                const jsonString = JSON.stringify(exportObj);
+                const blob = new Blob([jsonString], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const d = new Date();
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const fileName = `ChuMe_BodyData_${year}${month}${day}.json`;
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 100);
+                
+                if (typeof showToast === 'function') showToast('导出成功', 'success');
+            } catch (err) {
+                console.error('Export body data failed:', err);
+                if (typeof showToast === 'function') showToast('导出失败', 'error');
+            }
+        }
+
+        function triggerBodyImport() {
+            const fileInput = document.getElementById('import-body-file');
+            if (fileInput) {
+                fileInput.value = ''; // 清空以保证再次选择同一文件可以触发 change
+                fileInput.click();
+            }
+        }
 
         updateBodyUI();

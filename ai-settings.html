@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AI 设置</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- 啾咪全局样式 -->
+    <link rel="stylesheet" href="global.css">
+
+    <!-- 统一 Tailwind 配置（啾咪设计系统） -->
+    <script src="tailwind-config.js"></script>
+</head>
+
+<body class="flex items-center justify-center min-h-screen min-h-[100dvh] bg-chume-cream sm:bg-[#E8DED4] sm:py-4 transition-colors duration-300">
+
+    <!-- Container -->
+    <div id="app-container" class="bg-chume-card">
+
+        <!-- 导航栏 -->
+        <div
+            class="h-24 bg-chume-card/90 backdrop-blur-md sticky top-0 z-20 flex flex-col justify-end pb-3 px-4 shadow-card border-b border-chume-brown/10">
+            <div class="flex justify-between items-end">
+                <!-- 返回按钮 -->
+                <a href="index.html" class="text-chume-orange flex items-center gap-1 active:opacity-50">
+                    <i class="fas fa-chevron-left text-lg"></i>
+                    <span class="text-lg font-title">返回</span>
+                </a>
+
+                <!-- 标题 -->
+                <h1
+                    class="font-semibold text-lg absolute left-1/2 transform -translate-x-1/2 bottom-3 text-chume-brown font-title">
+                    AI 设置</h1>
+
+                <!-- 占位 -->
+                <div class="w-12"></div>
+            </div>
+        </div>
+
+        <!-- 内容区 -->
+        <div class="flex-1 overflow-y-auto px-4 py-6">
+
+            <!-- 当前激活预设状态卡片 -->
+            <div id="active-preset-card" class="bg-white rounded-card overflow-hidden shadow-card mb-6">
+                <div class="px-4 pt-4 pb-2 border-b border-chume-brown/10">
+                    <h2 class="text-sm font-semibold text-chume-brown font-title flex items-center gap-1.5">
+                        <span>⚡</span>
+                        <span>当前激活</span>
+                    </h2>
+                </div>
+                <div id="active-preset-content" class="px-4 py-4">
+                    <!-- JS 动态渲染 -->
+                    <p class="text-sm text-chume-brown-light text-center py-2">请在下方选择或添加预设</p>
+                </div>
+                <!-- 连通性测试按钮 -->
+                <div class="px-4 pb-4">
+                    <button id="btn-test-connection"
+                        class="w-full py-2.5 rounded-xl bg-chume-card text-chume-brown text-sm font-medium active:scale-95 transition-all min-h-[44px]">
+                        🔌 测试连通性
+                    </button>
+                </div>
+            </div>
+
+            <!-- 预设列表卡片（标题 + 新增按钮 在卡片内部） -->
+            <div id="preset-list-wrapper" class="bg-white rounded-card overflow-hidden shadow-card mb-6">
+                <!-- 卡片头部：标题 + 新增按钮 -->
+                <div class="flex items-center justify-between px-4 pt-4 pb-2 border-b border-chume-brown/10">
+                    <h2 class="text-sm font-semibold text-chume-brown font-title flex items-center gap-1.5">
+                        <span>📋</span>
+                        <span>预设列表</span>
+                    </h2>
+                    <button id="btn-add-preset"
+                        class="text-sm text-chume-orange font-medium active:opacity-50 transition-opacity flex items-center gap-1 min-h-[44px]">
+                        <i class="fas fa-plus text-xs"></i>
+                        <span>新增</span>
+                    </button>
+                </div>
+                <!-- 列表内容区（JS 动态渲染） -->
+                <div id="preset-list">
+                    <div class="px-4 py-6 text-center text-sm text-chume-brown-light">
+                        还没有预设，点击右上角「新增」开始吧
+                    </div>
+                </div>
+            </div>
+
+            <!-- 版本号 -->
+            <p class="mt-4 text-center text-xs text-chume-brown-light">
+                ChuMe v1.0.0
+            </p>
+
+        </div>
+
+    </div>
+
+    <!-- ========== 新增/编辑预设模态框 ========== -->
+    <div id="preset-modal" class="fixed inset-0 z-50 hidden">
+        <!-- 遮罩层 -->
+        <div id="preset-modal-backdrop" class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+
+        <!-- 模态框主体 -->
+        <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-chume-card rounded-t-3xl shadow-2xl overflow-hidden animate-slide-up">
+
+            <!-- 模态框头部 -->
+            <div class="flex items-center justify-between px-5 pt-5 pb-3">
+                <h3 id="modal-title" class="text-base font-semibold text-chume-brown font-title">新增预设</h3>
+                <button id="btn-modal-close" class="text-chume-brown-light active:opacity-50 p-1">
+                    <i class="fas fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <!-- 表单区域 -->
+            <div class="px-5 pb-6 max-h-[70vh] overflow-y-auto">
+                <div class="bg-white rounded-card overflow-hidden shadow-card">
+
+                    <!-- 隐藏编辑 ID -->
+                    <input type="hidden" id="form-preset-id" value="">
+
+                    <!-- 预设名称 -->
+                    <div class="flex items-center px-4 min-h-[48px] border-b border-chume-brown/10">
+                        <span class="w-24 text-chume-brown font-medium text-sm shrink-0">预设名称</span>
+                        <input type="text" id="form-preset-name"
+                            class="flex-1 outline-none text-right placeholder-chume-brown-light bg-transparent text-chume-brown text-sm min-h-[44px]"
+                            placeholder="例如：本地反代测试">
+                    </div>
+
+                    <!-- 模型来源 -->
+                    <div class="flex items-center px-4 min-h-[48px] border-b border-chume-brown/10">
+                        <span class="w-24 text-chume-brown font-medium text-sm shrink-0">模型来源</span>
+                        <select id="form-model-source"
+                            class="flex-1 outline-none text-right bg-transparent text-chume-brown min-h-[44px] cursor-pointer">
+                            <option value="openai">OpenAI兼容</option>
+                            <option value="gemini">Gemini</option>
+                            <option value="deepseek">Deepseek</option>
+                        </select>
+                    </div>
+
+                    <!-- 基础 URL -->
+                    <div class="flex items-center px-4 min-h-[48px] border-b border-chume-brown/10">
+                        <span class="w-24 text-chume-brown font-medium text-sm shrink-0">基础 URL</span>
+                        <input type="text" id="form-base-url"
+                            class="flex-1 outline-none text-right placeholder-chume-brown-light bg-transparent text-chume-brown text-sm min-h-[44px]"
+                            placeholder="如需请包含 /v1 路径">
+                    </div>
+
+                    <!-- API 密钥 -->
+                    <div class="flex items-center px-4 min-h-[48px] border-b border-chume-brown/10">
+                        <span class="w-24 text-chume-brown font-medium text-sm shrink-0">API 密钥</span>
+                        <input type="password" id="form-api-key"
+                            class="flex-1 outline-none text-right placeholder-chume-brown-light bg-transparent text-chume-brown text-sm min-h-[44px]"
+                            placeholder="sk-...">
+                    </div>
+
+                    <!-- 模型名称 -->
+                    <div class="flex items-center px-4 min-h-[48px] border-b border-chume-brown/10">
+                        <span class="w-24 text-chume-brown font-medium text-sm shrink-0">模型名称</span>
+                        <input type="text" id="form-model-name" list="ai_model_list"
+                            class="flex-1 outline-none text-right placeholder-chume-brown-light bg-transparent text-chume-brown text-sm min-h-[44px]"
+                            placeholder="gpt-4o">
+                        <datalist id="ai_model_list"></datalist>
+                    </div>
+
+                    <!-- 获取列表按钮 -->
+                    <button id="btn-fetch-models"
+                        class="w-full text-center text-blue-500 py-3 active:bg-chume-card transition-colors font-medium text-sm">
+                        🔄 获取模型列表
+                    </button>
+
+                </div>
+
+                <!-- 操作按钮区 -->
+                <div class="flex gap-3 mt-5">
+                    <button id="btn-form-cancel"
+                        class="flex-1 py-3 rounded-2xl bg-chume-card text-chume-brown font-medium active:scale-95 transition-transform text-sm">
+                        取消
+                    </button>
+                    <button id="btn-form-save"
+                        class="flex-1 py-3 rounded-2xl bg-chume-orange text-white font-medium active:scale-95 transition-transform shadow-sm text-sm">
+                        保存预设
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="utils.js"></script>
+    <script src="ai-settings.js"></script>
+</body>
+
+</html>

@@ -377,8 +377,8 @@ function renderWaterApp() {
                     </div>
                 </div>
                 <div class="flex gap-2">
-                     <button onclick="editWater(${i.id})" class="text-xs text-blue-400 px-2 py-1 bg-blue-50 rounded">改</button>
-                     <button onclick="delWater(${i.id})" class="text-xs text-red-400 px-2 py-1 bg-red-50 rounded">删</button>
+                     <button onclick="editWater('${i.id}')" class="text-xs text-blue-400 px-2 py-1 bg-blue-50 rounded shadow-sm hover:opacity-80 active:scale-95 transition-all">改</button>
+                     <button onclick="delWater('${i.id}')" class="text-xs text-red-400 px-2 py-1 bg-red-50 rounded shadow-sm hover:opacity-80 active:scale-95 transition-all">删</button>
                 </div>
             </div>`;
     });
@@ -527,6 +527,285 @@ window.onload = function () {
     renderWaterApp();
 }
 
+// --- Data Sync & Conflict Resolution ---
+let pendingConflicts = [];
+let pendingNewData = [];
+
+function exportWaterData() {
+    getAllData('water').then(data => {
+        const exportObj = {
+            signature: 'chume_water_export_v1',
+            timestamp: Date.now(),
+            waterLog: data
+        };
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportObj));
+        const dlAnchorElem = document.createElement('a');
+        dlAnchorElem.setAttribute("href", dataStr);
+        dlAnchorElem.setAttribute("download", `ChuMe_Water_${getCurrentDateString().replace(/-/g, '')}.json`);
+        document.body.appendChild(dlAnchorElem);
+        dlAnchorElem.click();
+        dlAnchorElem.remove();
+        if (typeof showToast === 'function') showToast('喝水数据导出成功', 'success');
+    }).catch(err => {
+        console.error('导出失败:', err);
+        if (typeof showToast === 'function') showToast('导出失败', 'error');
+    });
+}
+
+document.getElementById('import-water-file')?.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const importedData = JSON.parse(e.target.result);
+            if (!importedData.signature || !importedData.signature.includes('chume_water')) {
+                throw new Error("Invalid file format");
+            }
+            
+            // Fetch local data
+            getAllData('water').then(localData => {
+                const localByDate = new Map();
+                localData.forEach(r => {
+                    if (!localByDate.has(r.date)) localByDate.set(r.date, []);
+                    localByDate.get(r.date).push(r);
+                });
+                
+                const importByDate = new Map();
+                if (Array.isArray(importedData.waterLog)) {
+                    importedData.waterLog.forEach(r => {
+                        if (!importByDate.has(r.date)) importByDate.set(r.date, []);
+                        importByDate.get(r.date).push(r);
+                    });
+                }
+                
+                pendingConflicts = [];
+                pendingNewData = [];
+                
+                importByDate.forEach((impArr, date) => {
+                    if (!localByDate.has(date)) {
+                        pendingNewData.push(...impArr);
+                    } else {
+                        const locArr = localByDate.get(date);
+                        let isIdentical = false;
+                        if (locArr.length === impArr.length) {
+                            const sLoc = [...locArr].sort((a,b) => String(a.time).localeCompare(String(b.time)));
+                            const sImp = [...impArr].sort((a,b) => String(a.time).localeCompare(String(b.time)));
+                            isIdentical = true;
+                            for (let i=0; i<sLoc.length; i++) {
+                                let la = sLoc[i], ia = sImp[i];
+                                if (la.time !== ia.time || la.type !== ia.type || la.amount !== ia.amount || la.isElec !== ia.isElec) {
+                                    isIdentical = false; break;
+                                }
+                            }
+                        }
+                        
+                        if (!isIdentical) {
+                            pendingConflicts.push({ date: date, localArr: locArr, importArr: impArr });
+                        }
+                    }
+                });
+                
+                if (pendingConflicts.length > 0) {
+                    showConflictModal();
+                } else {
+                    // No conflicts, pure import
+                    if (pendingNewData.length > 0) {
+                        let promises = pendingNewData.map(record => saveData('water', record));
+                        Promise.all(promises).then(() => {
+                            if (typeof showToast === 'function') showToast(`成功带入 ${pendingNewData.length}条纯新喝水记录`, 'success');
+                            renderWaterApp();
+                            if (waterCalendar) waterCalendar.render(calDate, getWaterDateStr());
+                        });
+                    } else {
+                        if (typeof showToast === 'function') showToast('没有发现新的记录', 'success');
+                    }
+                }
+            }).catch(err => {
+                console.error("Local DB error:", err);
+                if (typeof showToast === 'function') showToast('读取本地数据失败', 'error');
+            });
+            
+        } catch (err) {
+            console.error(err);
+            if (typeof showToast === 'function') showToast('文件格式不对', 'error');
+        } finally {
+            document.getElementById('import-water-file').value = '';
+        }
+    };
+    reader.onerror = function() {
+        if (typeof showToast === 'function') showToast('读取文件失败', 'error');
+        document.getElementById('import-water-file').value = '';
+    };
+    reader.readAsText(file);
+});
+
+function showConflictModal() {
+    const modal = document.getElementById('conflict-modal');
+    const card = document.getElementById('conflict-card');
+    if (!modal) return;
+    
+    document.getElementById('conflict-count').innerText = pendingConflicts.length;
+    const listEl = document.getElementById('conflict-list');
+    
+    let html = '';
+    const sortedConflicts = [...pendingConflicts].sort((a,b) => new Date(b.date) - new Date(a.date));
+    
+    sortedConflicts.forEach((conf) => {
+        const idx = pendingConflicts.indexOf(conf);
+        let locRem = [...conf.localArr];
+        let impRem = [...conf.importArr];
+
+        for (let i = locRem.length - 1; i >= 0; i--) {
+            const l = locRem[i];
+            const matchIdx = impRem.findIndex(img => 
+                img.time === l.time && img.type === l.type && img.amount === l.amount && img.isElec === l.isElec
+            );
+            if (matchIdx !== -1) {
+                locRem.splice(i, 1);
+                impRem.splice(matchIdx, 1);
+            }
+        }
+        
+        let diffHtml = '';
+        locRem.sort((a,b) => String(a.time).localeCompare(String(b.time)));
+        impRem.sort((a,b) => String(a.time).localeCompare(String(b.time)));
+        
+        locRem.forEach(l => {
+            diffHtml += `<div class="leading-tight flex text-[11px]"><span class="inline-block w-11 shrink-0 text-gray-400">本地:</span> <span class="text-chume-brown">${l.time} ${l.type} <span class="font-bold text-chume-orange">${l.amount}ml</span></span></div>`;
+        });
+        
+        impRem.forEach(i => {
+            if (diffHtml !== '' && diffHtml.endsWith('</div>') && !diffHtml.includes('导入:')) {
+                diffHtml += '<div class="h-1.5 w-full border-t border-dashed border-black/5 my-1"></div>';
+            }
+            diffHtml += `<div class="leading-tight flex text-[11px]"><span class="inline-block w-11 shrink-0 text-chume-orange/80">导入:</span> <span class="text-chume-brown">${i.time} ${i.type} <span class="font-bold text-chume-orange">${i.amount}ml</span></span></div>`;
+        });
+
+        if (diffHtml === '') diffHtml = '<div class="text-[11px] text-gray-400">数据相同（隐性冲突）</div>';
+
+        html += `
+        <div class="bg-gray-50 rounded-xl p-3 shadow-sm border border-black/5 mb-3 last:mb-0">
+            <div class="text-[13px] font-bold text-chume-brown flex items-center justify-between font-num mb-2 border-b border-chume-brown/10 pb-2">
+                <div class="flex items-center gap-1.5">
+                    <span class="bg-chume-orange/10 text-chume-orange px-1.5 py-0.5 rounded text-[10px] leading-none">日期</span>
+                    ${conf.date}
+                </div>
+                <div class="shrink-0 flex items-center bg-gray-200/80 rounded-full p-1 cursor-pointer w-[100px] h-[28px] relative transition-colors select-none" onclick="window.toggleConflict(${idx})">
+                    <div id="slider-bg-${idx}" class="absolute left-1 top-1 w-[44px] h-[20px] bg-white rounded-full shadow-sm transition-transform duration-300"></div>
+                    <div id="label-local-${idx}" class="relative z-10 w-1/2 text-center text-[11px] font-bold text-chume-brown transition-colors leading-[20px]">本地</div>
+                    <div id="label-import-${idx}" class="relative z-10 w-1/2 text-center text-[11px] font-bold text-gray-400 transition-colors leading-[20px]">导入</div>
+                    <input type="hidden" id="conflict-choice-${idx}" class="conflict-choice" value="local">
+                </div>
+            </div>
+            <div class="bg-white p-2 rounded-lg border border-black/5 flex flex-col gap-1">
+                ${diffHtml}
+            </div>
+        </div>`;
+    });
+    listEl.innerHTML = html;
+    
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        if (card) {
+            card.classList.remove('translate-y-full', 'sm:scale-95');
+            card.classList.add('translate-y-0', 'sm:scale-100');
+        }
+    }, 10);
+}
+
+window.toggleConflict = function(idx) {
+    const input = document.getElementById(`conflict-choice-${idx}`);
+    const slider = document.getElementById(`slider-bg-${idx}`);
+    const lLocal = document.getElementById(`label-local-${idx}`);
+    const lImport = document.getElementById(`label-import-${idx}`);
+    if (!input) return;
+    if (input.value === 'local') {
+        input.value = 'import';
+        slider.style.transform = 'translateX(48px)';
+        lLocal.className = "relative z-10 w-1/2 text-center text-[11px] font-bold text-gray-400 transition-colors leading-[20px]";
+        lImport.className = "relative z-10 w-1/2 text-center text-[11px] font-bold text-chume-orange transition-colors leading-[20px]";
+    } else {
+        input.value = 'local';
+        slider.style.transform = 'translateX(0)';
+        lLocal.className = "relative z-10 w-1/2 text-center text-[11px] font-bold text-chume-brown transition-colors leading-[20px]";
+        lImport.className = "relative z-10 w-1/2 text-center text-[11px] font-bold text-gray-400 transition-colors leading-[20px]";
+    }
+};
+
+function closeConflictModal() {
+    const modal = document.getElementById('conflict-modal');
+    const card = document.getElementById('conflict-card');
+    if (!modal) return;
+    
+    modal.classList.add('opacity-0');
+    if (card) {
+        card.classList.remove('translate-y-0', 'sm:scale-100');
+        card.classList.add('translate-y-full', 'sm:scale-95');
+    }
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        pendingConflicts = []; 
+    }, 300);
+
+    pendingNewData = [];
+}
+
+function overrideAllConflicts() {
+    document.querySelectorAll('.conflict-choice').forEach(input => {
+        if (input.value === 'local') {
+            const idx = input.id.replace('conflict-choice-', '');
+            window.toggleConflict(idx);
+        }
+    });
+}
+
+function confirmConflictMerge() {
+    let resolvedCnt = 0;
+    let promises = [];
+    
+    document.querySelectorAll('.conflict-choice').forEach((input) => {
+        const idx = parseInt(input.id.replace('conflict-choice-', ''));
+        const conf = pendingConflicts[idx];
+        if (input.value === 'import') {
+            conf.localArr.forEach(r => promises.push(deleteData('water', String(r.id))));
+            conf.importArr.forEach(r => promises.push(saveData('water', r)));
+            resolvedCnt++;
+        }
+    });
+    
+    if (pendingNewData.length > 0) {
+        pendingNewData.forEach(r => {
+            promises.push(saveData('water', r));
+        });
+    }
+    
+    if (promises.length > 0) {
+        Promise.all(promises).then(() => {
+            const modal = document.getElementById('conflict-modal');
+            const card = document.getElementById('conflict-card');
+            modal.classList.add('opacity-0');
+            if (card) {
+                card.classList.remove('translate-y-0', 'sm:scale-100');
+                card.classList.add('translate-y-full', 'sm:scale-95');
+            }
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                pendingConflicts = [];
+                pendingNewData = [];
+            }, 300);
+            
+            if (typeof showToast === 'function') showToast(`成功导入 ${pendingNewData.length}条新记录并覆盖 ${resolvedCnt}条冲突`, 'success');
+            renderWaterApp();
+            if (waterCalendar) waterCalendar.render(calDate, getWaterDateStr());
+        });
+    } else {
+        closeConflictModal();
+    }
+}
+
 // 全局导出（供HTML内联事件使用）
 window.waterApp = {
     selectQuickVol,
@@ -538,5 +817,9 @@ window.waterApp = {
     openCalendar,
     closeCalendar,
     calChangeMonth,
-    selectCalDate
+    selectCalDate,
+    exportWaterData,
+    closeConflictModal,
+    overrideAllConflicts,
+    confirmConflictMerge
 };

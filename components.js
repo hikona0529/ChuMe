@@ -9,7 +9,7 @@
  * 通用日历组件
  * 统一管理日历的渲染和交互逻辑
  */
-export class CalendarComponent {
+class CalendarComponent {
     constructor(options) {
         this.containerId = options.containerId || 'cal-days';
         this.titleId = options.titleId || 'cal-title';
@@ -218,13 +218,16 @@ export class CalendarComponent {
 /**
  * 统一管理模态框的显示和隐藏
  */
-export class ModalManager {
+class ModalManager {
     static defaultOptions = {
         animationDuration: 200,
         useBackdrop: true,
         closeOnBackdropClick: true,
         closeOnEsc: true
     };
+
+    // 使用 Map 保存事件回调引用（dataset 只能存字符串，无法存函数）
+    static _handlers = new Map();
 
     /**
      * 显示模态框
@@ -237,6 +240,9 @@ export class ModalManager {
             return false;
         }
 
+        // 清理之前可能残留的事件监听
+        this.cleanup(modal, modalId);
+
         // 移除隐藏类
         modal.classList.remove('hidden');
         
@@ -244,7 +250,6 @@ export class ModalManager {
         if (config.animationDuration > 0) {
             setTimeout(() => {
                 modal.classList.remove('opacity-0');
-                // 其他可能的动画类
                 const card = modal.querySelector('[data-modal-card]');
                 if (card) {
                     card.classList.remove('scale-95');
@@ -253,28 +258,30 @@ export class ModalManager {
             }, 10);
         }
 
+        const handlers = {};
+
         // 添加ESC键关闭监听
         if (config.closeOnEsc) {
-            const escHandler = (e) => {
+            handlers.escHandler = (e) => {
                 if (e.key === 'Escape') {
                     this.hide(modalId, config);
-                    document.removeEventListener('keydown', escHandler);
                 }
             };
-            document.addEventListener('keydown', escHandler);
-            modal.dataset.escHandler = escHandler;
+            document.addEventListener('keydown', handlers.escHandler);
         }
 
         // 添加背景点击关闭
         if (config.closeOnBackdropClick) {
-            const backdropClickHandler = (e) => {
+            handlers.backdropHandler = (e) => {
                 if (e.target === modal || e.target.hasAttribute('data-modal-backdrop')) {
                     this.hide(modalId, config);
                 }
             };
-            modal.addEventListener('click', backdropClickHandler);
-            modal.dataset.backdropHandler = backdropClickHandler;
+            modal.addEventListener('click', handlers.backdropHandler);
         }
+
+        // 将回调引用保存到 Map 中
+        this._handlers.set(modalId, handlers);
 
         return true;
     }
@@ -296,34 +303,33 @@ export class ModalManager {
                 card.classList.add('scale-95');
             }
 
-            // 延迟移除模态框
             setTimeout(() => {
                 modal.classList.add('hidden');
-                this.cleanup(modal);
+                this.cleanup(modal, modalId);
             }, config.animationDuration);
         } else {
             modal.classList.add('hidden');
-            this.cleanup(modal);
+            this.cleanup(modal, modalId);
         }
 
         return true;
     }
 
     /**
-     * 清理事件监听器
+     * 清理事件监听器（从 Map 中取出真实函数引用）
      */
-    static cleanup(modal) {
-        // 移除ESC监听器
-        if (modal.dataset.escHandler) {
-            document.removeEventListener('keydown', modal.dataset.escHandler);
-            delete modal.dataset.escHandler;
+    static cleanup(modal, modalId) {
+        const handlers = this._handlers.get(modalId);
+        if (!handlers) return;
+
+        if (handlers.escHandler) {
+            document.removeEventListener('keydown', handlers.escHandler);
+        }
+        if (handlers.backdropHandler) {
+            modal.removeEventListener('click', handlers.backdropHandler);
         }
 
-        // 移除背景点击监听器
-        if (modal.dataset.backdropHandler) {
-            modal.removeEventListener('click', modal.dataset.backdropHandler);
-            delete modal.dataset.backdropHandler;
-        }
+        this._handlers.delete(modalId);
     }
 }
 
@@ -332,8 +338,66 @@ export class ModalManager {
 /**
  * 统一管理选项卡切换逻辑
  */
-export class TabSwitcher {
-    constructor(containerId, options = {}) {
+class TabSwitcher {
+    /**
+     * 支持两种构造方式：
+     * 1. new TabSwitcher(containerId, options)  — 原有方式（通过 data-tab 属性关联页面）
+     * 2. new TabSwitcher(options)              — 新方式（仅控制 tab 按钮样式，无页面切换）
+     *    options: { containerSelector, tabSelector, onTabChange, selectedClass, deselectedClass, activeTab }
+     */
+    constructor(firstArg, secondArg) {
+        // 判断调用方式
+        if (typeof firstArg === 'object' && firstArg !== null && !secondArg) {
+            // 新方式：传入 options 对象
+            this._initFromOptions(firstArg);
+        } else {
+            // 原有方式：传入 containerId + options
+            this._initFromContainerId(firstArg, secondArg || {});
+        }
+    }
+
+    /**
+     * 新方式初始化（med-reminders 等页面使用）
+     */
+    _initFromOptions(opts) {
+        this.mode = 'simple'; // 仅切换按钮样式，不管理页面
+        this.options = {
+            selectedClass: opts.selectedClass || 'bg-white text-black shadow-sm',
+            deselectedClass: opts.deselectedClass || 'text-gray-500 hover:text-gray-900',
+            onTabChange: opts.onTabChange || null,
+            activeTab: opts.activeTab || null
+        };
+
+        // 通过选择器找到容器和按钮
+        const container = document.querySelector(opts.containerSelector);
+        if (!container) {
+            console.error(`TabSwitcher 容器未找到: ${opts.containerSelector}`);
+            return;
+        }
+
+        const tabSelector = opts.tabSelector || '[data-period]';
+        this.tabs = Array.from(container.querySelectorAll(tabSelector));
+        this.activeTabElement = null;
+
+        // 绑定点击事件
+        this.tabs.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const dataVal = btn.dataset.period || btn.dataset.tab || btn.dataset.val || btn.textContent.trim();
+                this.setActiveTab(dataVal);
+            });
+        });
+
+        // 设置初始激活
+        if (this.options.activeTab) {
+            this.setActiveTab(this.options.activeTab);
+        }
+    }
+
+    /**
+     * 原有方式初始化（bodydata 等页面使用）
+     */
+    _initFromContainerId(containerId, options) {
+        this.mode = 'page'; // 管理页面切换
         this.container = document.getElementById(containerId);
         if (!this.container) {
             throw new Error(`Tab container not found: ${containerId}`);
@@ -349,16 +413,12 @@ export class TabSwitcher {
             ...options
         };
 
-        this.tabs = [];
-        this.activeTab = null;
-        this.initialize();
+        this.tabsList = [];
+        this.activeTabObj = null;
+        this._initPageMode();
     }
 
-    /**
-     * 初始化选项卡
-     */
-    initialize() {
-        // 收集所有选项卡按钮
+    _initPageMode() {
         const tabButtons = this.container.querySelectorAll('[data-tab]');
         
         tabButtons.forEach(button => {
@@ -378,50 +438,76 @@ export class TabSwitcher {
                 isActive: button.classList.contains(this.options.activeClass.split(' ')[0])
             };
 
-            this.tabs.push(tab);
+            this.tabsList.push(tab);
 
-            // 设置初始状态
             if (tab.isActive) {
-                this.activeTab = tab;
+                this.activeTabObj = tab;
             }
 
-            // 绑定点击事件
             button.addEventListener('click', (e) => {
                 e.preventDefault();
                 this.switchTo(tabId);
             });
         });
 
-        // 如果没有活跃选项卡，激活第一个
-        if (!this.activeTab && this.tabs.length > 0) {
-            this.switchTo(this.tabs[0].id);
+        if (!this.activeTabObj && this.tabsList.length > 0) {
+            this.switchTo(this.tabsList[0].id);
         }
     }
 
     /**
-     * 切换到指定选项卡
+     * 设置当前激活的 tab（simple 模式专用，通过 data 属性匹配）
+     */
+    setActiveTab(tabValue) {
+        if (this.mode === 'simple') {
+            const selectedClasses = this.options.selectedClass.split(' ').filter(Boolean);
+            const deselectedClasses = this.options.deselectedClass.split(' ').filter(Boolean);
+
+            this.tabs.forEach(btn => {
+                const dataVal = btn.dataset.period || btn.dataset.tab || btn.dataset.val || btn.textContent.trim();
+                if (dataVal === tabValue) {
+                    deselectedClasses.forEach(c => btn.classList.remove(c));
+                    selectedClasses.forEach(c => btn.classList.add(c));
+                    this.activeTabElement = btn;
+                } else {
+                    selectedClasses.forEach(c => btn.classList.remove(c));
+                    deselectedClasses.forEach(c => btn.classList.add(c));
+                }
+            });
+
+            // 触发回调
+            if (this.options.onTabChange) {
+                this.options.onTabChange(this.activeTabElement, tabValue);
+            }
+        } else {
+            // page 模式下调用 switchTo
+            this.switchTo(tabValue);
+        }
+    }
+
+    /**
+     * 切换到指定选项卡（page 模式专用）
      */
     switchTo(tabId) {
-        const newTab = this.tabs.find(t => t.id === tabId);
-        if (!newTab || newTab === this.activeTab) return;
+        if (this.mode !== 'page') return;
 
-        // 切换前事件
+        const newTab = this.tabsList.find(t => t.id === tabId);
+        if (!newTab || newTab === this.activeTabObj) return;
+
         if (this.options.onBeforeSwitch) {
-            const shouldSwitch = this.options.onBeforeSwitch(this.activeTab?.id, tabId);
+            const shouldSwitch = this.options.onBeforeSwitch(this.activeTabObj?.id, tabId);
             if (shouldSwitch === false) return;
         }
 
-        // 更新旧选项卡
-        if (this.activeTab) {
-            this.activeTab.button.className = this.options.inactiveClass;
-            this.activeTab.target.classList.add(this.options.pageInactiveClass);
-            this.activeTab.target.classList.remove(this.options.pageActiveClass);
+        if (this.activeTabObj) {
+            this.activeTabObj.button.className = this.options.inactiveClass;
+            this.activeTabObj.target.classList.add(this.options.pageInactiveClass);
+            this.activeTabObj.target.classList.remove(this.options.pageActiveClass);
             if (this.options.animationClass) {
-                this.activeTab.target.classList.remove(this.options.animationClass);
+                this.activeTabObj.target.classList.remove(this.options.animationClass);
             }
         }
 
-        // 更新新选项卡
         newTab.button.className = this.options.activeClass;
         newTab.target.classList.remove(this.options.pageInactiveClass);
         newTab.target.classList.add(this.options.pageActiveClass);
@@ -429,10 +515,8 @@ export class TabSwitcher {
             newTab.target.classList.add(this.options.animationClass);
         }
 
-        // 保存活跃状态
-        this.activeTab = newTab;
+        this.activeTabObj = newTab;
 
-        // 切换后事件
         if (this.options.onAfterSwitch) {
             this.options.onAfterSwitch(tabId);
         }
@@ -442,33 +526,7 @@ export class TabSwitcher {
      * 获取当前活跃选项卡
      */
     getActiveTab() {
-        return this.activeTab;
-    }
-
-    /**
-     * 添加新选项卡
-     */
-    addTab(tabId, buttonElement, targetElement) {
-        const tab = {
-            id: tabId,
-            button: buttonElement,
-            target: targetElement,
-            isActive: false
-        };
-
-        this.tabs.push(tab);
-
-        // 设置初始样式
-        buttonElement.className = this.options.inactiveClass;
-        targetElement.classList.add(this.options.pageInactiveClass);
-
-        // 绑定事件
-        buttonElement.addEventListener('click', (e) => {
-            e.preventDefault();
-            this.switchTo(tabId);
-        });
-
-        return tab;
+        return this.mode === 'page' ? this.activeTabObj : this.activeTabElement;
     }
 }
 
@@ -477,171 +535,253 @@ export class TabSwitcher {
 /**
  * 统一管理芯片选择器逻辑
  */
-export class ChipSelector {
-    constructor(containerSelector, options = {}) {
+class ChipSelector {
+    /**
+     * 支持两种构造方式：
+     * 1. new ChipSelector(cssSelector, options) — 原有方式
+     * 2. new ChipSelector(options)             — 新方式
+     *    options: { containerSelector, chipSelector, singleSelect, selectedClass, deselectedClass, onSelect, onDeselect }
+     */
+    constructor(firstArg, secondArg) {
+        if (typeof firstArg === 'object' && firstArg !== null && !secondArg) {
+            // 新方式：单个 options 对象
+            this._initFromOptions(firstArg);
+        } else {
+            // 原有方式：(selectorString, options)
+            this._initFromSelector(firstArg, secondArg || {});
+        }
+    }
+
+    /**
+     * 新方式初始化（medicine-refactored / med-reminders 使用）
+     */
+    _initFromOptions(opts) {
+        // 在容器内查找芯片
+        const container = document.querySelector(opts.containerSelector);
+        const chipSelector = opts.chipSelector || '[data-value]';
+        
+        if (container) {
+            this.chips = Array.from(container.querySelectorAll(chipSelector));
+        } else {
+            // 如果容器找不到，尝试全局查找
+            this.chips = Array.from(document.querySelectorAll(chipSelector));
+        }
+
+        if (this.chips.length === 0) {
+            console.warn(`ChipSelector: 未找到芯片元素 (container: ${opts.containerSelector}, chip: ${chipSelector})`);
+        }
+
+        this.options = {
+            activeClass: opts.selectedClass || 'bg-blue-500 text-white border-blue-500',
+            inactiveClass: opts.deselectedClass || 'bg-white text-gray-600 border-gray-200',
+            multiple: opts.singleSelect === false || opts.multiple === true, // singleSelect=false → 多选
+            dataAttribute: 'data-value',
+            onSelect: opts.onSelect || null,
+            onDeselect: opts.onDeselect || null,
+            onChange: opts.onChange || null
+        };
+
+        this.selectedChips = new Set();
+        this._selectedElements = new Map(); // value → DOM element 映射
+        this._bindEvents();
+    }
+
+    /**
+     * 原有方式初始化
+     */
+    _initFromSelector(containerSelector, options) {
         this.chips = Array.from(document.querySelectorAll(containerSelector));
         if (this.chips.length === 0) {
             console.warn(`No chips found with selector: ${containerSelector}`);
         }
 
         this.options = {
-            activeClass: 'bg-blue-500 text-white border-blue-500',
-            inactiveClass: 'bg-white text-gray-600 border-gray-200',
-            multiple: false,
-            dataAttribute: 'data-value',
-            ...options
+            activeClass: options.activeClass || 'bg-blue-500 text-white border-blue-500',
+            inactiveClass: options.inactiveClass || 'bg-white text-gray-600 border-gray-200',
+            multiple: options.multiple || false,
+            dataAttribute: options.dataAttribute || 'data-value',
+            onSelect: options.onSelect || null,
+            onDeselect: options.onDeselect || null,
+            onChange: options.onChange || null
         };
 
         this.selectedChips = new Set();
-        this.initialize();
+        this._selectedElements = new Map();
+        this._bindEvents();
     }
 
     /**
-     * 初始化芯片
+     * 绑定点击事件
      */
-    initialize() {
+    _bindEvents() {
         this.chips.forEach(chip => {
             // 检查初始选中状态
             if (chip.classList.contains(this.options.activeClass.split(' ')[0])) {
-                const value = chip.getAttribute(this.options.dataAttribute) || chip.textContent;
+                const value = this._getChipValue(chip);
                 this.selectedChips.add(value);
+                this._selectedElements.set(value, chip);
             }
 
-            // 绑定点击事件
             chip.addEventListener('click', (e) => {
-                this.handleChipClick(chip, e);
+                this._handleClick(chip, e);
             });
         });
     }
 
     /**
+     * 获取芯片的值
+     */
+    _getChipValue(chip) {
+        return chip.getAttribute(this.options.dataAttribute) || chip.textContent.trim();
+    }
+
+    /**
      * 处理芯片点击
      */
-    handleChipClick(chip, event) {
-        const value = chip.getAttribute(this.options.dataAttribute) || chip.textContent;
+    _handleClick(chip, event) {
+        const value = this._getChipValue(chip);
         
         if (this.options.multiple) {
-            // 多选模式
+            // 多选模式：切换
             if (this.selectedChips.has(value)) {
-                this.deselectChip(chip, value);
+                this._doDeselect(chip, value);
             } else {
-                this.selectChip(chip, value);
+                this._doSelect(chip, value);
             }
         } else {
             // 单选模式
             if (!this.selectedChips.has(value)) {
-                // 取消选择其他芯片
+                // 先取消已有选中
                 this.chips.forEach(c => {
-                    const chipValue = c.getAttribute(this.options.dataAttribute) || c.textContent;
-                    if (this.selectedChips.has(chipValue)) {
-                        this.deselectChip(c, chipValue);
+                    const cv = this._getChipValue(c);
+                    if (this.selectedChips.has(cv)) {
+                        this._doDeselect(c, cv);
                     }
                 });
-                
-                // 选择当前芯片
-                this.selectChip(chip, value);
+                this._doSelect(chip, value);
             }
-            // 如果已经选中，在单选模式下不做任何事（保持选中）
         }
 
-        // 触发回调
         if (this.options.onChange) {
             this.options.onChange(this.getSelectedValues(), this.selectedChips);
         }
     }
 
     /**
-     * 选择芯片
+     * 内部：选中一个芯片
      */
-    selectChip(chip, value) {
-        // 更新样式
-        const inactiveClasses = this.options.inactiveClass.split(' ');
-        const activeClasses = this.options.activeClass.split(' ');
+    _doSelect(chip, value) {
+        const inactiveClasses = this.options.inactiveClass.split(' ').filter(Boolean);
+        const activeClasses = this.options.activeClass.split(' ').filter(Boolean);
         
         inactiveClasses.forEach(cls => chip.classList.remove(cls));
         activeClasses.forEach(cls => chip.classList.add(cls));
         
-        // 更新选中状态
         this.selectedChips.add(value);
+        this._selectedElements.set(value, chip);
         
-        // 触发选择回调
         if (this.options.onSelect) {
-            this.options.onSelect(value, chip);
+            this.options.onSelect(chip, value);
         }
     }
 
     /**
-     * 取消选择芯片
+     * 内部：取消选中一个芯片
      */
-    deselectChip(chip, value) {
-        // 更新样式
-        const inactiveClasses = this.options.inactiveClass.split(' ');
-        const activeClasses = this.options.activeClass.split(' ');
+    _doDeselect(chip, value) {
+        const inactiveClasses = this.options.inactiveClass.split(' ').filter(Boolean);
+        const activeClasses = this.options.activeClass.split(' ').filter(Boolean);
         
         activeClasses.forEach(cls => chip.classList.remove(cls));
         inactiveClasses.forEach(cls => chip.classList.add(cls));
         
-        // 更新选中状态
         this.selectedChips.delete(value);
+        this._selectedElements.delete(value);
         
-        // 触发取消选择回调
         if (this.options.onDeselect) {
-            this.options.onDeselect(value, chip);
+            this.options.onDeselect(chip, value);
         }
     }
 
+    // ========== 公共 API ==========
+
     /**
-     * 获取选中的值
+     * 通过值选中一个芯片（业务代码调用）
+     */
+    select(value) {
+        const chip = this.chips.find(c => this._getChipValue(c) === value);
+        if (!chip) return;
+
+        if (!this.options.multiple) {
+            // 单选模式下先清空
+            this.chips.forEach(c => {
+                const cv = this._getChipValue(c);
+                if (this.selectedChips.has(cv)) {
+                    this._doDeselect(c, cv);
+                }
+            });
+        }
+        this._doSelect(chip, value);
+    }
+
+    /**
+     * 取消所有选中（业务代码常用）
+     */
+    deselectAll() {
+        this.chips.forEach(chip => {
+            const value = this._getChipValue(chip);
+            if (this.selectedChips.has(value)) {
+                this._doDeselect(chip, value);
+            }
+        });
+        this.selectedChips.clear();
+        this._selectedElements.clear();
+    }
+
+    /**
+     * 获取所有选中的值数组
      */
     getSelectedValues() {
         return Array.from(this.selectedChips);
     }
 
     /**
-     * 获取选中的第一个值
+     * 获取第一个选中的值（单选模式常用）
      */
     getSelectedValue() {
         return this.selectedChips.values().next().value || null;
     }
 
     /**
-     * 设置选中的值
+     * 获取第一个选中的 DOM 元素
+     */
+    getSelectedElement() {
+        return this._selectedElements.values().next().value || null;
+    }
+
+    /**
+     * 获取所有选中的 DOM 元素
+     */
+    getSelectedElements() {
+        return Array.from(this._selectedElements.values());
+    }
+
+    /**
+     * 设置选中的值（批量）
      */
     setSelectedValues(values) {
-        // 清空当前选择
-        this.chips.forEach(chip => {
-            const chipValue = chip.getAttribute(this.options.dataAttribute) || chip.textContent;
-            if (this.selectedChips.has(chipValue)) {
-                this.deselectChip(chip, chipValue);
-            }
-        });
-
-        // 设置新选择
+        this.deselectAll();
         const valuesArray = Array.isArray(values) ? values : [values];
         valuesArray.forEach(value => {
-            const chip = this.chips.find(c => {
-                const chipValue = c.getAttribute(this.options.dataAttribute) || c.textContent;
-                return chipValue === value;
-            });
-            
-            if (chip) {
-                this.selectChip(chip, value);
-            }
+            this.select(value);
         });
     }
 
     /**
-     * 重置所有选择
+     * 重置（别名，等同 deselectAll）
      */
     reset() {
-        this.chips.forEach(chip => {
-            const value = chip.getAttribute(this.options.dataAttribute) || chip.textContent;
-            if (this.selectedChips.has(value)) {
-                this.deselectChip(chip, value);
-            }
-        });
-        
-        this.selectedChips.clear();
+        this.deselectAll();
     }
 }
 
@@ -650,7 +790,7 @@ export class ChipSelector {
 /**
  * DOM操作工具函数
  */
-export const DOMUtils = {
+const DOMUtils = {
     /**
      * 安全设置innerHTML，提供基本的XSS防护
      */
@@ -734,27 +874,37 @@ export const DOMUtils = {
         classes.forEach(cls => {
             element.classList.toggle(cls);
         });
+    },
+
+    /**
+     * 增强 DOM 元素的交互体验
+     * 自动为带有 data-enhance 属性的按钮添加按压效果等
+     */
+    enhanceDOM(container = document) {
+        // 为所有按钮添加按压缩放效果（如果尚未添加）
+        container.querySelectorAll('button:not([data-enhanced])').forEach(btn => {
+            btn.setAttribute('data-enhanced', 'true');
+            btn.addEventListener('touchstart', () => {
+                btn.style.transform = 'scale(0.95)';
+            }, { passive: true });
+            btn.addEventListener('touchend', () => {
+                btn.style.transform = '';
+            }, { passive: true });
+        });
+    },
+
+    /**
+     * 安全转义 HTML 字符串（使用 textContent 方案，防 XSS）
+     */
+    escapeHTML(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = String(str);
+        return div.innerHTML;
     }
 };
 
-// ==================== 导出所有组件 ====================
-
-// ES Module 导出
-export {
-    CalendarComponent,
-    ModalManager,
-    TabSwitcher,
-    ChipSelector,
-    DOMUtils
-};
-
-export default {
-    CalendarComponent,
-    ModalManager,
-    TabSwitcher,
-    ChipSelector,
-    DOMUtils
-};
+// ==================== 全局注册 ====================
 
 // 全局导出（非模块环境）
 if (typeof window !== 'undefined') {

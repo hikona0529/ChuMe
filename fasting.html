@@ -83,12 +83,22 @@
     <div id="app-container">
         <!-- Header -->
         <div
-            class="h-14 flex items-center px-4 bg-white/80 backdrop-blur-md sticky top-0 z-20 border-b border-chume-brown/10">
-            <a href="index.html" class="flex items-center text-chume-orange gap-1 btn-ios">
-                <i class="fas fa-chevron-left"></i>
-                <span class="font-medium font-title">返回</span>
-            </a>
-            <h1 class="absolute left-1/2 -translate-x-1/2 font-semibold text-lg text-chume-brown font-title">轻断食</h1>
+            class="h-14 flex items-center justify-between px-4 bg-white/80 backdrop-blur-md sticky top-0 z-20 border-b border-chume-brown/10">
+            <div class="flex-1 flex items-center">
+                <a href="index.html" class="flex items-center text-chume-orange gap-1 btn-ios">
+                    <i class="fas fa-chevron-left"></i>
+                    <span class="font-medium font-title">返回</span>
+                </a>
+            </div>
+            <h1 class="font-semibold text-lg text-chume-brown font-title absolute left-1/2 -translate-x-1/2">轻断食</h1>
+            <div class="flex-1 flex items-center justify-end gap-3">
+                <button onclick="document.getElementById('import-fasting-file').click()" class="text-chume-orange hover:opacity-70 active:scale-95 transition-all outline-none" title="从备份导入">
+                    <i class="fas fa-file-import text-lg"></i>
+                </button>
+                <button onclick="exportFastingData()" class="text-chume-orange hover:opacity-70 active:scale-95 transition-all outline-none" title="导出备份">
+                    <i class="fas fa-file-export text-lg"></i>
+                </button>
+            </div>
         </div>
 
         <!-- Main Content -->
@@ -245,6 +255,29 @@
 
     </div>
 
+    <!-- HIDDEN FILE INPUT -->
+    <input type="file" id="import-fasting-file" accept=".json" class="hidden">
+
+    <!-- CONFLICT MODAL -->
+    <div id="conflict-modal" class="hidden fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex flex-col items-center justify-end sm:justify-center p-0 sm:p-4 transition-opacity opacity-0">
+        <div class="bg-white w-full max-w-[430px] rounded-t-3xl sm:rounded-card shadow-soft transform translate-y-full sm:translate-y-0 sm:scale-95 transition-transform duration-300 flex flex-col max-h-[85vh]" id="conflict-card">
+            <div class="p-5 border-b border-chume-brown/10 flex justify-between items-center bg-chume-cream/30 shrink-0">
+                <h3 class="text-[17px] font-bold text-chume-brown font-title">发现数据冲突 (<span id="conflict-count">0</span>)</h3>
+                <button onclick="closeConflictModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-chume-brown-light hover:bg-white hover:shadow-card transition-all">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="conflict-list" class="overflow-y-auto custom-scrollbar p-5 space-y-3 flex-1">
+                <!-- 动态注入冲突列表 -->
+            </div>
+            <div class="p-5 border-t border-chume-brown/10 flex items-center gap-3 bg-gray-50/50 shrink-0 pb-safe pb-8 sm:pb-5">
+                <button onclick="overrideAllConflicts()" class="flex-1 py-3 rounded-full bg-white border border-chume-brown/10 text-chume-brown font-semibold text-[15px] shadow-sm active:scale-95 transition-transform">全部覆盖</button>
+                <button onclick="confirmConflictMerge()" class="flex-[2] py-3 rounded-full bg-chume-orange text-white font-semibold text-[15px] shadow-card active:scale-95 transition-transform">确认合并</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="utils.js"></script>
     <script src="fasting.js"></script>
 </body>
 

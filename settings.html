@@ -60,9 +60,47 @@
                         class="flex-1 outline-none text-right placeholder-chume-brown-light bg-transparent text-chume-brown"
                         placeholder="你的名字">
                 </div>
+                <!-- Gender Input -->
+                <div class="flex items-center justify-between px-4 py-3 border-b border-chume-brown/10">
+                    <span class="text-chume-brown font-medium shrink-0">性别</span>
+                    <div class="flex items-center bg-chume-card p-1 rounded-lg w-[120px] text-xs">
+                        <input type="hidden" id="gender-input" value="">
+                        <button onclick="setSettingsGender('1')" id="btn-gender-1" class="flex-1 py-1.5 text-center rounded-md font-medium text-chume-brown-light hover:text-chume-brown transition-all">男生</button>
+                        <button onclick="setSettingsGender('2')" id="btn-gender-2" class="flex-1 py-1.5 text-center rounded-md font-medium text-chume-brown-light hover:text-chume-brown transition-all">女生</button>
+                    </div>
+                </div>
+                <!-- Height Input -->
+                <div class="flex items-center px-4 py-3">
+                    <span class="w-20 text-chume-brown font-medium">身高</span>
+                    <div class="flex-1 flex items-center justify-end">
+                        <input type="number" id="height-input"
+                            class="w-20 outline-none text-right placeholder-chume-brown-light bg-transparent text-chume-brown font-num"
+                            placeholder="填写数值">
+                        <span class="text-sm text-chume-brown-light ml-1 font-title">cm</span>
+                    </div>
+                </div>
             </div>
 
-            <!-- Group 2: Reset -->
+            <!-- Group 2: Backup & Restore -->
+            <div class="bg-white rounded-card overflow-hidden shadow-card mb-6">
+                <!-- Export Backup -->
+                <button onclick="exportGlobalData()"
+                    class="w-full flex items-center justify-between px-4 py-3 border-b border-chume-brown/10 active:bg-chume-card transition-colors">
+                    <span class="text-chume-orange font-medium">导出完整备份</span>
+                    <i class="fas fa-file-export text-chume-orange/70"></i>
+                </button>
+                <!-- Import Backup -->
+                <button onclick="triggerImport()"
+                    class="w-full flex items-center justify-between px-4 py-3 active:bg-chume-card transition-colors">
+                    <span class="text-chume-brown font-medium">从完整备份恢复</span>
+                    <i class="fas fa-file-import text-chume-brown-light"></i>
+                </button>
+            </div>
+
+            <!-- 隐藏的文件选择器 -->
+            <input type="file" id="import-file" accept=".json" class="hidden">
+
+            <!-- Group 3: Reset -->
             <div class="bg-white rounded-card overflow-hidden shadow-card">
                 <button id="btn-reset" onclick="handleReset()"
                     class="w-full text-center text-chume-pink py-3 active:bg-chume-card font-medium">

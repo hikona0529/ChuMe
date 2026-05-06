@@ -34,6 +34,7 @@ coverage/
 *.tmp
 *.temp
 .temp/
+*.backup
 
 # 大文件
 *.zip
@@ -50,6 +51,9 @@ coverage/
 # CodeBuddy相关
 .codebuddy/
 .brain/
+
+# 外部资料仓库
+Product-Manager-Skills/
 
 # 操作系统文件
 .DS_Store

@@ -90,37 +90,43 @@
         }
 
         .ios-input-status {
-            width: 88px;
+            width: 120px;
             height: 44px;
             background: #FAFAFC;
             border: 1px solid rgba(92, 75, 67, 0.15);
             border-radius: 0.75rem;
             flex-shrink: 0;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             align-items: center;
             justify-content: center;
-            font-size: 0.7rem;
-            font-weight: 600;
+            gap: 4px;
+            font-size: 1rem;
+            font-weight: 400;
             color: var(--chume-brown-light);
         }
 
         .ios-input-status.good {
             color: #34C759;
-            background: #E8F5E9;
-            border-color: #34C759;
         }
 
         .ios-input-status.bad {
             color: #FF3B30;
-            background: #FFEBEE;
-            border-color: #FF3B30;
         }
 
         .ios-input-status.neutral {
             color: var(--chume-brown-light);
-            background: var(--chume-card);
-            border-color: rgba(92, 75, 67, 0.15);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(92, 75, 67, 0.25);
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
         }
     </style>
 </head>
@@ -141,22 +147,20 @@
                 class="text-[17px] font-semibold tracking-tight w-full text-center pointer-events-none text-chume-brown font-title">
                 身体数据
             </h1>
+            <div class="absolute right-5 flex items-center gap-3 z-30">
+                <button onclick="triggerBodyImport()" class="text-chume-orange active:opacity-50 transition-opacity">
+                    <i class="fas fa-file-import text-lg"></i>
+                </button>
+                <button onclick="exportBodyData()" class="text-chume-orange active:opacity-50 transition-opacity">
+                    <i class="fas fa-file-export text-lg"></i>
+                </button>
+            </div>
         </header>
 
         <!-- Main Content -->
-        <div class="flex-1 overflow-y-auto hide-scrollbar p-0 pb-20 bg-white">
+        <div class="flex-1 overflow-y-auto hide-scrollbar p-0 pb-32 bg-white">
 
-            <!-- Tabs -->
-            <div class="px-4 py-3 bg-white">
-                <div class="bg-chume-card p-1 rounded-lg flex text-[13px] font-medium text-chume-brown-light h-[36px]">
-                    <button onclick="switchBodyTab('daily')" id="tab-btn-daily"
-                        class="flex-1 rounded-[7px] bg-white text-chume-brown shadow-card transition-all duration-300">每日数据</button>
-                    <button onclick="switchBodyTab('weekly')" id="tab-btn-weekly"
-                        class="flex-1 rounded-[7px] hover:text-chume-brown transition-all duration-300">每周数据</button>
-                    <button onclick="switchBodyTab('summary')" id="tab-btn-summary"
-                        class="flex-1 rounded-[7px] hover:text-chume-brown transition-all duration-300">数据汇总</button>
-                </div>
-            </div>
+            <!-- Tabs have been seamlessly moved to the bottom UI shell -->
 
             <!-- Date Nav: Trigger Button -->
             <div id="body-nav-bar"
@@ -260,12 +264,12 @@
                 <div class="pt-2 space-y-3 pb-8">
                     <div class="flex justify-center">
                         <div class="px-4 py-1 bg-chume-card rounded-full text-xs font-semibold text-chume-brown-light">
-                            备注</div>
+                            今日想说的</div>
                     </div>
                     <div
-                        class="bg-chume-card rounded-card p-4 border border-transparent focus-within:bg-white focus-within:border-chume-orange/30 focus-within:shadow-card transition-all">
-                        <textarea id="in-note-daily" oninput="autoSave('daily')"
-                            class="w-full h-32 bg-transparent text-base outline-none resize-none placeholder-chume-brown-light text-chume-brown"
+                        class="bg-chume-card rounded-card p-4 border border-transparent focus-within:bg-white focus-within:border-chume-orange/30 focus-within:shadow-card transition-all h-full">
+                        <textarea id="in-note-daily" oninput="if(typeof autoResizeTextarea==='function') autoResizeTextarea(this); autoSave('daily')"
+                            class="w-full min-h-[100px] overflow-y-auto custom-scrollbar bg-transparent text-base outline-none resize-none placeholder-chume-brown-light text-chume-brown transition-all"
                             placeholder="今天有什么特别的感觉吗..."></textarea>
                     </div>
                 </div>
@@ -274,15 +278,6 @@
             <!-- Page: Weekly -->
             <div id="page-weekly" class="hidden px-5 py-2 space-y-6">
                 <div class="space-y-1">
-                    <div class="flex items-center justify-between w-full py-3 border-b border-chume-brown/10">
-                        <div class="text-chume-brown font-medium shrink-0">身高</div>
-                        <div class="flex-1 ml-2 flex items-center bg-white/60 rounded-xl px-3 py-2 shadow-sm">
-                            <input type="number" id="in-height"
-                                oninput="calcWeeklyStats(); autoSave('weekly')"
-                                class="flex-1 w-0 bg-transparent outline-none text-left font-num text-chume-brown">
-                            <span class="shrink-0 ml-2 text-sm text-chume-brown-light font-title">cm</span>
-                        </div>
-                    </div>
                     <div class="flex items-center justify-between w-full py-3 border-b border-chume-brown/10">
                         <div class="text-chume-brown font-medium shrink-0">体重</div>
                         <div class="flex-1 ml-2 flex items-center gap-3">
@@ -366,12 +361,12 @@
                 <div class="pt-2 space-y-3 pb-8">
                     <div class="flex justify-center">
                         <div class="px-4 py-1 bg-chume-card rounded-full text-xs font-semibold text-chume-brown-light">
-                            本周总结</div>
+                            本周想说的</div>
                     </div>
                     <div
-                        class="bg-chume-card rounded-card p-4 border border-transparent focus-within:bg-white focus-within:border-chume-orange/30 focus-within:shadow-card transition-all">
-                        <textarea id="in-note-weekly" oninput="autoSave('weekly')"
-                            class="w-full h-24 bg-transparent text-base outline-none resize-none placeholder-chume-brown-light text-chume-brown"
+                        class="bg-chume-card rounded-card p-4 border border-transparent focus-within:bg-white focus-within:border-chume-orange/30 focus-within:shadow-card transition-all h-full">
+                        <textarea id="in-note-weekly" oninput="if(typeof autoResizeTextarea==='function') autoResizeTextarea(this); autoSave('weekly')"
+                            class="w-full min-h-[100px] overflow-y-auto custom-scrollbar bg-transparent text-base outline-none resize-none placeholder-chume-brown-light text-chume-brown transition-all"
                             placeholder="总结一下..."></textarea>
                     </div>
                 </div>
@@ -381,9 +376,9 @@
             <div id="page-summary" class="hidden px-5 py-4 space-y-6">
                 <div class="bg-chume-card p-1 rounded-xl flex">
                     <button id="btn-src-daily" onclick="setSummarySource('daily')"
-                        class="flex-1 py-1.5 rounded-lg text-xs font-semibold bg-white shadow-card text-chume-brown transition-all">每日历史</button>
+                        class="flex-1 py-1.5 rounded-lg text-xs font-semibold bg-white shadow-card text-chume-brown transition-all">每日</button>
                     <button id="btn-src-weekly" onclick="setSummarySource('weekly')"
-                        class="flex-1 py-1.5 rounded-lg text-xs font-semibold text-chume-brown-light hover:text-chume-brown transition-all">每周趋势</button>
+                        class="flex-1 py-1.5 rounded-lg text-xs font-semibold text-chume-brown-light hover:text-chume-brown transition-all">每周</button>
                 </div>
                 <div id="metric-nav" class="flex gap-2 overflow-x-auto pb-2 hide-scrollbar"></div>
                 <div class="flex justify-end gap-2">
@@ -393,7 +388,53 @@
                         class="p-2 text-chume-brown-light hover:text-chume-orange"><i
                             class="fas fa-chart-line"></i></button>
                 </div>
-                <div id="summary-content" class="bg-chume-card rounded-card p-1 min-h-[300px]"></div>
+                <div id="summary-content" class="min-h-[300px]"></div>
+            </div>
+        </div>
+
+        <!-- 隐藏的文件选择器 -->
+        <input type="file" id="import-body-file" accept=".json" class="hidden">
+
+        <!-- Fixed Bottom Tabs -->
+        <div class="absolute bottom-0 left-0 w-full bg-white/95 backdrop-blur-md border-t border-chume-brown/5 pb-safe pb-6 pt-3 px-6 z-40">
+            <div class="bg-chume-card p-1.5 rounded-full flex text-[14px] font-semibold text-chume-brown-light h-[52px] shadow-sm border border-white/50">
+                <button onclick="switchBodyTab('daily')" id="tab-btn-daily"
+                    class="flex-1 rounded-full bg-white text-chume-brown shadow-card transition-all duration-300">每日数据</button>
+                <button onclick="switchBodyTab('weekly')" id="tab-btn-weekly"
+                    class="flex-1 rounded-full hover:text-chume-brown transition-all duration-300">每周数据</button>
+                <button onclick="switchBodyTab('summary')" id="tab-btn-summary"
+                    class="flex-1 rounded-full hover:text-chume-brown transition-all duration-300">数据汇总</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- PROFILE MODAL -->
+    <div id="profile-modal"
+        class="hidden fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity opacity-0">
+        <div class="bg-white rounded-card shadow-soft w-full max-w-[340px] overflow-hidden transform scale-95 transition-transform duration-200" data-modal-card>
+            <div class="p-6 text-center border-b border-chume-brown/10 bg-chume-cream/30">
+                <h3 class="text-xl font-bold text-chume-brown font-title">很高兴遇见你</h3>
+                <p class="text-xs text-chume-brown-light mt-1.5">首次使用请先完善个人基础信息</p>
+            </div>
+            <div class="p-6 space-y-6">
+                <div>
+                    <label class="block text-sm font-semibold text-chume-brown mb-2 pl-1">我是...</label>
+                    <div id="chip-gender" class="flex gap-3">
+                        <button data-value="1" class="flex-1 py-2.5 rounded-xl border border-chume-brown/10 text-chume-brown font-medium bg-white hover:bg-chume-cream transition-colors text-sm shadow-sm">👨🏻 男生</button>
+                        <button data-value="2" class="flex-1 py-2.5 rounded-xl border border-chume-brown/10 text-chume-brown font-medium bg-white hover:bg-chume-cream transition-colors text-sm shadow-sm">👩🏻 女生</button>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-chume-brown mb-2 pl-1">我的身高</label>
+                    <div class="flex items-center bg-white/50 border border-chume-brown/10 rounded-xl px-4 py-2.5 shadow-inner">
+                        <input type="number" id="profile-height" class="flex-1 w-0 bg-transparent outline-none font-num text-lg text-chume-brown" placeholder="在此输入">
+                        <span class="shrink-0 text-sm font-semibold text-chume-brown-light ml-2">cm</span>
+                    </div>
+                </div>
+            </div>
+            <div class="p-5 border-t border-chume-brown/10 flex justify-center bg-gray-50/50">
+                <button onclick="saveInitialProfile()" class="w-full py-3 rounded-full bg-chume-brown text-white font-semibold text-base shadow-card active:scale-95 transition-transform">开启记录</button>
             </div>
         </div>
     </div>
@@ -433,6 +474,24 @@
             <div class="p-3 border-t border-chume-brown/10 flex justify-center">
                 <button onclick="closeCalendar()"
                     class="text-chume-orange text-sm font-semibold px-4 py-1 font-title">关闭</button>
+            </div>
+        </div>
+    </div>
+    <!-- CONFLICT MODAL -->
+    <div id="conflict-modal" class="hidden fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex flex-col items-center justify-end sm:justify-center p-0 sm:p-4 transition-opacity opacity-0">
+        <div class="bg-white w-full max-w-[430px] rounded-t-3xl sm:rounded-card shadow-soft transform translate-y-full sm:translate-y-0 sm:scale-95 transition-transform duration-300 flex flex-col max-h-[85vh]" id="conflict-card">
+            <div class="p-5 border-b border-chume-brown/10 flex justify-between items-center bg-chume-cream/30 shrink-0">
+                <h3 class="text-[17px] font-bold text-chume-brown font-title">发现数据冲突 (<span id="conflict-count">0</span>)</h3>
+                <button onclick="closeConflictModal()" class="w-8 h-8 rounded-full flex items-center justify-center text-chume-brown-light hover:bg-white hover:shadow-card transition-all">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="conflict-list" class="overflow-y-auto custom-scrollbar p-5 space-y-3 flex-1">
+                <!-- 动态注入冲突列表 -->
+            </div>
+            <div class="p-5 border-t border-chume-brown/10 flex items-center gap-3 bg-gray-50/50 shrink-0 pb-safe pb-8 sm:pb-5">
+                <button onclick="overrideAllConflicts()" class="flex-1 py-3 rounded-full bg-white border border-chume-brown/10 text-chume-brown font-semibold text-[15px] shadow-sm active:scale-95 transition-transform">全部覆盖</button>
+                <button onclick="confirmConflictMerge()" class="flex-[2] py-3 rounded-full bg-chume-orange text-white font-semibold text-[15px] shadow-card active:scale-95 transition-transform">确认合并</button>
             </div>
         </div>
     </div>

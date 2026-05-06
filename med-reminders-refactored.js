@@ -7,7 +7,7 @@
 // 1. 数据常量与全局状态
 // ---------------------------
 const KEYS = {
-    INVENTORY: 'med_inventory', // 由我的药箱提供，只读
+    INVENTORY: 'med_inventory', // 由我的药箱直接提供，药箱未用 chume_ 前缀
     RULES: 'med_rules',         // 本页负责写入的服药规则
     LOGS: 'med_logs'            // 服药打卡记录
 };
@@ -15,12 +15,15 @@ const KEYS = {
 let currentBoardTab = '早'; // 当前高亮的主渲染时段
 window._currentGroups = {}; // 用于存储当前页面的聚合组，方便打卡点击
 
-// 安全解析读取
+// 安全解析读取，强制保证返回数组
 function readLocal(key) {
     try {
         const data = localStorage.getItem(key);
-        return data ? JSON.parse(data) : [];
+        if (!data) return [];
+        const parsed = JSON.parse(data);
+        return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
+        console.error("Storage parse error on key", key, e);
         return [];
     }
 }
@@ -203,6 +206,14 @@ function getDailyConsumptions() {
     return consumption;
 }
 
+function isRuleScheduledForWeekday(rule, weekday) {
+    if (!Array.isArray(rule.weekdays) || rule.weekdays.length === 0) {
+        return true;
+    }
+
+    return rule.weekdays.includes(weekday);
+}
+
 // 渲染列表结构
 function renderBoard() {
     const inv = readLocal(KEYS.INVENTORY);
@@ -224,12 +235,14 @@ function renderBoard() {
     let hasRulesInTab = false;
 
     // 先获取今天的日期用于比对
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getCurrentDateString();
+    const todayWeekday = String(new Date().getDay());
 
     rules.forEach(rule => {
         // --- 核心过滤点一：生效日期拦截 ---
         if (rule.startDate && todayStr < rule.startDate) return;
         if (rule.endDate && todayStr > rule.endDate) return;
+        if (!isRuleScheduledForWeekday(rule, todayWeekday)) return;
 
         const med = inv.find(m => m.id === rule.medId) || { name: '未知药品', unit: '?' };
 
@@ -556,7 +569,7 @@ function resetForm() {
     }
 
     // 日期重白
-    dom.fStart.value = new Date().toISOString().split('T')[0];
+    dom.fStart.value = getCurrentDateString();
     dom.fEnd.value = '';
 
     // 默认隐藏彻底删除按钮
