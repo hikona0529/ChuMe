@@ -83,6 +83,9 @@
 
                 <!-- Actions -->
                 <div class="flex items-center gap-3 pb-1">
+                    <a href="water-settings.html" class="text-chume-orange hover:opacity-70 active:scale-95 transition-all outline-none" title="喝水设置">
+                        <i class="fas fa-cog text-lg"></i>
+                    </a>
                     <button onclick="document.getElementById('import-water-file').click()" class="text-chume-orange hover:opacity-70 active:scale-95 transition-all outline-none" title="从备份导入">
                         <i class="fas fa-file-import text-lg"></i>
                     </button>
@@ -149,41 +152,6 @@
 
             </div>
 
-            <!-- Goals Settings (Foldable) -->
-            <details
-                class="group mb-6 bg-white/50 backdrop-blur-sm rounded-card overflow-hidden border border-chume-brown/10">
-                <summary
-                    class="px-4 py-3 cursor-pointer list-none flex justify-between items-center text-sm font-medium text-chume-brown-light">
-                    <div class="flex items-center w-full">
-                        <span>目标设置</span>
-                        <span id="settings-hint"
-                            class="text-xs text-chume-brown-light font-normal ml-auto mr-2">未设置，请点开设置一下吧！</span>
-                    </div>
-                    <i
-                        class="fas fa-chevron-down transform group-open:rotate-180 transition-transform flex-shrink-0"></i>
-                </summary>
-                <div class="px-4 pb-4 text-sm flex gap-3 items-center border-t border-chume-brown/10 pt-3">
-                    <div class="flex-1">
-                        <label class="block text-xs text-chume-brown-light mb-1">总目标 (ml)</label>
-                        <input type="number" id="set-goal-total"
-                            class="w-full bg-chume-card rounded-lg px-2 py-1.5 outline-none text-center text-chume-brown"
-                            placeholder="未设置" oninput="updateSettingsHint()" onchange="saveGoals()">
-                    </div>
-                    <div class="flex-1">
-                        <label class="block text-xs text-chume-brown-light mb-1">电解质 (ml)</label>
-                        <input type="number" id="set-goal-elec"
-                            class="w-full bg-chume-card rounded-lg px-2 py-1.5 outline-none text-center text-chume-brown"
-                            placeholder="未设置" oninput="updateSettingsHint()" onchange="saveGoals()">
-                    </div>
-                    <div class="flex-1">
-                        <label class="block text-xs text-chume-brown-light mb-1">默认杯量 (ml)</label>
-                        <input type="number" id="set-default-vol"
-                            class="w-full bg-chume-card rounded-lg px-2 py-1.5 outline-none text-center text-chume-brown"
-                            placeholder="未设置" oninput="updateSettingsHint()" onchange="saveGoals()">
-                    </div>
-                </div>
-            </details>
-
             <!-- Controls Area -->
             <div class="mb-6">
                 <!-- Quick Volume Override Bar -->
@@ -204,50 +172,51 @@
                         class="w-20 py-1.5 px-2 bg-white border border-chume-brown/10 rounded-lg text-xs text-center outline-none shadow-card focus:border-chume-orange placeholder-chume-brown-light text-chume-brown">
                 </div>
 
-                <!-- Drink Grid -->
-                <div class="grid grid-cols-3 gap-3">
-                    <div onclick="addWater('白开水', false)"
-                        class="bg-white p-3 rounded-card shadow-card flex flex-col items-center gap-2 active:scale-95 transition-transform cursor-pointer border border-chume-brown/10">
+                <!-- Drink Options -->
+                <div id="drink-scroll" class="drink-scroll flex w-full max-w-full min-w-0 gap-3 overflow-x-auto hide-scrollbar pb-1 snap-x snap-mandatory touch-pan-x select-none cursor-grab"
+                    style="-webkit-overflow-scrolling: touch; touch-action: pan-x; overscroll-behavior-x: contain;">
+                    <div onclick="waterApp.addWater('白开水', false)"
+                        class="shrink-0 w-28 bg-white p-3 rounded-card shadow-card flex flex-col items-center gap-2 active:scale-95 transition-transform cursor-pointer border border-chume-brown/10 snap-start">
                         <span class="text-2xl">🥤</span>
                         <div class="flex items-center gap-1.5">
                             <div class="w-1.5 h-1.5 rounded-full bg-[#72BCD4]"></div>
                             <span class="text-xs font-medium text-chume-brown">白开水</span>
                         </div>
                     </div>
-                    <div onclick="addWater('黑咖啡', false)"
-                        class="bg-white p-3 rounded-card shadow-card flex flex-col items-center gap-2 active:scale-95 transition-transform cursor-pointer border border-chume-brown/10">
+                    <div onclick="waterApp.addWater('黑咖啡', false)"
+                        class="shrink-0 w-28 bg-white p-3 rounded-card shadow-card flex flex-col items-center gap-2 active:scale-95 transition-transform cursor-pointer border border-chume-brown/10 snap-start">
                         <span class="text-2xl">☕</span>
                         <div class="flex items-center gap-1.5">
                             <div class="w-1.5 h-1.5 rounded-full bg-amber-900"></div>
                             <span class="text-xs font-medium text-chume-brown">黑咖啡</span>
                         </div>
                     </div>
-                    <div onclick="addWater('电解质', true)"
-                        class="bg-white p-3 rounded-card shadow-card flex flex-col items-center gap-2 active:scale-95 transition-transform cursor-pointer border border-chume-brown/10">
+                    <div onclick="waterApp.addWater('电解质', true)"
+                        class="shrink-0 w-28 bg-white p-3 rounded-card shadow-card flex flex-col items-center gap-2 active:scale-95 transition-transform cursor-pointer border border-chume-brown/10 snap-start">
                         <span class="text-2xl">⚡</span>
                         <div class="flex items-center gap-1.5">
                             <div class="w-1.5 h-1.5 rounded-full bg-chume-orange"></div>
                             <span class="text-xs font-medium text-chume-brown">电解质</span>
                         </div>
                     </div>
-                    <div onclick="addWater('柠檬水', false)"
-                        class="bg-white p-3 rounded-card shadow-card flex flex-col items-center gap-2 active:scale-95 transition-transform cursor-pointer border border-chume-brown/10">
+                    <div onclick="waterApp.addWater('柠檬水', false)"
+                        class="shrink-0 w-28 bg-white p-3 rounded-card shadow-card flex flex-col items-center gap-2 active:scale-95 transition-transform cursor-pointer border border-chume-brown/10 snap-start">
                         <span class="text-2xl">🍋</span>
                         <div class="flex items-center gap-1.5">
                             <div class="w-1.5 h-1.5 rounded-full bg-yellow-400"></div>
                             <span class="text-xs font-medium text-chume-brown">柠檬水</span>
                         </div>
                     </div>
-                    <div onclick="addWater('淡盐水', true)"
-                        class="bg-white p-3 rounded-card shadow-card flex flex-col items-center gap-2 active:scale-95 transition-transform cursor-pointer border border-chume-brown/10">
+                    <div onclick="waterApp.addWater('淡盐水', true)"
+                        class="shrink-0 w-28 bg-white p-3 rounded-card shadow-card flex flex-col items-center gap-2 active:scale-95 transition-transform cursor-pointer border border-chume-brown/10 snap-start">
                         <span class="text-2xl">🧂</span>
                         <div class="flex items-center gap-1.5">
                             <div class="w-1.5 h-1.5 rounded-full bg-cyan-500"></div>
                             <span class="text-xs font-medium text-chume-brown">淡盐水</span>
                         </div>
                     </div>
-                    <div onclick="addWater('茶', false)"
-                        class="bg-white p-3 rounded-card shadow-card flex flex-col items-center gap-2 active:scale-95 transition-transform cursor-pointer border border-chume-brown/10">
+                    <div onclick="waterApp.addWater('茶', false)"
+                        class="shrink-0 w-28 bg-white p-3 rounded-card shadow-card flex flex-col items-center gap-2 active:scale-95 transition-transform cursor-pointer border border-chume-brown/10 snap-start">
                         <span class="text-2xl">🍵</span>
                         <div class="flex items-center gap-1.5">
                             <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
@@ -283,7 +252,15 @@
                 <button onclick="calChangeMonth(-1)"
                     class="w-8 h-8 rounded-full flex items-center justify-center text-chume-orange hover:bg-white hover:shadow-card"><i
                         class="fas fa-chevron-left"></i></button>
-                <span id="cal-title" class="text-base font-bold text-chume-brown font-title"></span>
+                <div class="flex flex-col items-center">
+                    <span id="cal-title" class="text-base font-bold text-chume-brown font-title"></span>
+                    <div class="mt-1 flex items-center gap-3">
+                        <button id="cal-view-toggle" onclick="toggleWaterCalendarView()"
+                            class="text-xs text-chume-orange font-semibold active:opacity-60">显示当周</button>
+                        <button onclick="goToWaterCalendarToday()"
+                            class="text-xs text-chume-brown-light font-semibold active:opacity-60">回到今日</button>
+                    </div>
+                </div>
                 <button onclick="calChangeMonth(1)"
                     class="w-8 h-8 rounded-full flex items-center justify-center text-chume-orange hover:bg-white hover:shadow-card"><i
                         class="fas fa-chevron-right"></i></button>
@@ -292,13 +269,13 @@
             <div class="p-4">
                 <!-- Weekdays -->
                 <div class="grid grid-cols-7 text-center mb-2">
-                    <div class="text-xs font-semibold text-chume-brown-light">日</div>
                     <div class="text-xs font-semibold text-chume-brown-light">一</div>
                     <div class="text-xs font-semibold text-chume-brown-light">二</div>
                     <div class="text-xs font-semibold text-chume-brown-light">三</div>
                     <div class="text-xs font-semibold text-chume-brown-light">四</div>
                     <div class="text-xs font-semibold text-chume-brown-light">五</div>
                     <div class="text-xs font-semibold text-chume-brown-light">六</div>
+                    <div class="text-xs font-semibold text-chume-brown-light">日</div>
                 </div>
                 <!-- Days -->
                 <div id="cal-days" class="grid grid-cols-7 text-center gap-y-1"></div>

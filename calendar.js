@@ -388,11 +388,13 @@
     async function renderCalendarGrid() {
         const title = getElement('calendar-month-title');
         if (title) title.innerText = formatMonthTitle(pageState.currentMonth);
+        updateCalendarViewToggle();
 
         await loadMonthMarkers();
 
         if (pageState.calendar) {
             await pageState.calendar.render(pageState.currentMonth, pageState.selectedDate);
+            updateCalendarViewToggle();
             return;
         }
 
@@ -546,7 +548,32 @@
 
     async function changeCalendarMonth(delta) {
         pageState.currentMonth.setMonth(pageState.currentMonth.getMonth() + delta);
+        if (pageState.calendar && pageState.calendar.viewMode === 'week') {
+            pageState.selectedDate = `${pageState.currentMonth.getFullYear()}-${String(pageState.currentMonth.getMonth() + 1).padStart(2, '0')}-01`;
+            pageState.currentMonth = parseLocalDate(pageState.selectedDate);
+            renderSelectedDayDetail(pageState.selectedDate);
+        }
         await renderCalendarGrid();
+    }
+
+    async function toggleCalendarView() {
+        if (!pageState.calendar) return;
+        pageState.calendar.toggleViewMode();
+        updateCalendarViewToggle();
+        await renderCalendarGrid();
+    }
+
+    async function goToCalendarToday() {
+        pageState.selectedDate = getTodayString();
+        pageState.currentMonth = parseLocalDate(pageState.selectedDate);
+        await renderCalendarGrid();
+        renderSelectedDayDetail(pageState.selectedDate);
+    }
+
+    function updateCalendarViewToggle() {
+        const button = getElement('calendar-view-toggle');
+        if (!button || !pageState.calendar) return;
+        button.innerText = pageState.calendar.getToggleButtonText();
     }
 
     async function addSchedule(color) {
@@ -598,7 +625,8 @@
     function bindCalendarPageEvents() {
         getElement('calendar-prev-month')?.addEventListener('click', () => changeCalendarMonth(-1));
         getElement('calendar-next-month')?.addEventListener('click', () => changeCalendarMonth(1));
-        getElement('calendar-today')?.addEventListener('click', () => selectCalendarDate(getTodayString()));
+        getElement('calendar-view-toggle')?.addEventListener('click', toggleCalendarView);
+        getElement('calendar-today')?.addEventListener('click', goToCalendarToday);
         getElement('calendar-memo')?.addEventListener('change', saveSelectedMemo);
         getElement('calendar-period-start')?.addEventListener('click', () => togglePeriod('start'));
         getElement('calendar-period-end')?.addEventListener('click', () => togglePeriod('end'));

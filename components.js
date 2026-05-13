@@ -23,6 +23,7 @@ class CalendarComponent {
         this.futureClass = options.futureClass || 'text-gray-300 pointer-events-none';
         this.allowFuture = options.allowFuture || false;
         this.mode = options.mode || 'compact';
+        this.viewMode = options.viewMode === 'week' ? 'week' : 'month';
         this.markSymbol = options.markSymbol || {
             default: '✓',
             success: '✓',
@@ -65,6 +66,7 @@ class CalendarComponent {
             
             // 生成日历HTML
             const html = this.generateCalendarHTML(year, month, data);
+            this.applyViewTransitionClass();
             this.container.innerHTML = html;
             
             // 绑定事件
@@ -80,22 +82,25 @@ class CalendarComponent {
      * 生成日历HTML
      */
     generateCalendarHTML(year, month, data) {
-        const firstDay = new Date(year, month, 1).getDay(); // 0=周日, 6=周六
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+        const daysToRender = this.getDaysToRender(year, month);
         
         let html = '';
         
-        // 空白的起始单元格
-        for (let i = 0; i < firstDay; i++) {
-            html += '<div></div>';
+        if (this.viewMode === 'month') {
+            const firstDay = this.getMondayBasedWeekday(new Date(year, month, 1));
+            for (let i = 0; i < firstDay; i++) {
+                html += '<div></div>';
+            }
         }
         
         // 日期单元格
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dateObj = new Date(year, month, day);
-            const dateStr = this.formatDateString(year, month + 1, day);
+        daysToRender.forEach(dateObj => {
+            const day = dateObj.getDate();
+            const cellYear = dateObj.getFullYear();
+            const cellMonth = dateObj.getMonth();
+            const dateStr = this.formatDateString(cellYear, cellMonth + 1, day);
             const isFuture = !this.allowFuture && dateObj > today;
             const isSelected = this.selectedDate === dateStr;
             const isToday = dateObj.getTime() === today.getTime();
@@ -106,8 +111,8 @@ class CalendarComponent {
                 isFuture,
                 isSelected,
                 isToday,
-                year,
-                month
+                year: cellYear,
+                month: cellMonth
             };
             
             // 应用标记逻辑
@@ -162,9 +167,77 @@ class CalendarComponent {
                     ${innerHtml}
                 </div>
             `;
-        }
+        });
         
         return html;
+    }
+
+    /**
+     * 获取当前视图需要渲染的日期。
+     */
+    getDaysToRender(year, month) {
+        if (this.viewMode === 'week') {
+            const selected = this.selectedDate
+                ? this.parseDateString(this.selectedDate)
+                : new Date(year, month, 1);
+            const weekStart = new Date(selected);
+            weekStart.setDate(selected.getDate() - this.getMondayBasedWeekday(selected));
+
+            return Array.from({ length: 7 }, (_, index) => {
+                const date = new Date(weekStart);
+                date.setDate(weekStart.getDate() + index);
+                return date;
+            });
+        }
+
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        return Array.from({ length: daysInMonth }, (_, index) => {
+            return new Date(year, month, index + 1);
+        });
+    }
+
+    /**
+     * 周一为 0，周日为 6。
+     */
+    getMondayBasedWeekday(date) {
+        return (date.getDay() + 6) % 7;
+    }
+
+    /**
+     * 解析本地日期字符串，避免 UTC 时区偏移。
+     */
+    parseDateString(dateStr) {
+        const [year, month, day] = String(dateStr).split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        date.setHours(0, 0, 0, 0);
+        return date;
+    }
+
+    /**
+     * 应用简单高度/内容过渡类。
+     */
+    applyViewTransitionClass() {
+        if (!this.container) return;
+        this.container.classList.add('transition-all', 'duration-300', 'ease-in-out');
+        this.container.classList.toggle('calendar-week-view', this.viewMode === 'week');
+        this.container.classList.toggle('calendar-month-view', this.viewMode === 'month');
+    }
+
+    /**
+     * 切换周/月视图。
+     */
+    toggleViewMode() {
+        this.viewMode = this.viewMode === 'week' ? 'month' : 'week';
+        return this.viewMode;
+    }
+
+    getToggleButtonText() {
+        return this.viewMode === 'week' ? '显示当月' : '显示当周';
+    }
+
+    setViewMode(viewMode) {
+        this.viewMode = viewMode === 'week' ? 'week' : 'month';
+        return this.viewMode;
     }
 
     /**

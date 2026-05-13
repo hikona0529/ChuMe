@@ -30,20 +30,106 @@ let waterCalendar = null;
 
 // --- Core Logic ---
 
+function parseWaterRecordTime(time) {
+    const match = String(time || '').match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return -1;
+
+    const hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return -1;
+
+    return hours * 60 + minutes;
+}
+
+function getWaterRecordInsertRank(record, index) {
+    const numericId = Number(record && record.id);
+    return Number.isFinite(numericId) ? numericId : index;
+}
+
+function sortWaterRecordsForDisplay(records) {
+    return [...(records || [])]
+        .map((record, index) => ({ record, index }))
+        .sort((a, b) => {
+            const timeDiff = parseWaterRecordTime(b.record.time) - parseWaterRecordTime(a.record.time);
+            if (timeDiff !== 0) return timeDiff;
+
+            return getWaterRecordInsertRank(b.record, b.index) - getWaterRecordInsertRank(a.record, a.index);
+        })
+        .map(item => item.record);
+}
+
+function initDrinkScroll() {
+    const scroller = document.getElementById('drink-scroll');
+    if (!scroller) return;
+
+    let isDragging = false;
+    let startX = 0;
+    let startScrollLeft = 0;
+    let moved = false;
+    let activePointerType = '';
+
+    scroller.addEventListener('pointerdown', event => {
+        activePointerType = event.pointerType || '';
+        if (activePointerType !== 'mouse') return;
+        if (event.button !== 0) return;
+
+        isDragging = true;
+        moved = false;
+        startX = event.clientX;
+        startScrollLeft = scroller.scrollLeft;
+        scroller.classList.add('cursor-grabbing');
+        scroller.classList.remove('cursor-grab');
+    });
+
+    scroller.addEventListener('pointermove', event => {
+        if (activePointerType !== 'mouse') return;
+        if (!isDragging) return;
+
+        const deltaX = event.clientX - startX;
+        if (Math.abs(deltaX) > 4) moved = true;
+        scroller.scrollLeft = startScrollLeft - deltaX;
+    });
+
+    function endDrag(event) {
+        if (!isDragging) return;
+
+        isDragging = false;
+        activePointerType = '';
+        scroller.classList.remove('cursor-grabbing');
+        scroller.classList.add('cursor-grab');
+    }
+
+    scroller.addEventListener('pointerup', endDrag);
+    scroller.addEventListener('pointercancel', endDrag);
+    scroller.addEventListener('mouseleave', endDrag);
+    scroller.addEventListener('click', event => {
+        if (moved) {
+            event.preventDefault();
+            event.stopPropagation();
+            moved = false;
+        }
+    }, true);
+}
+
 // Init Inputs (Run ONCE on load)
 function initInputs() {
+    const totalInput = document.getElementById('set-goal-total');
+    const elecInput = document.getElementById('set-goal-elec');
+    const volumeInput = document.getElementById('set-default-vol');
+    if (!totalInput || !elecInput || !volumeInput) return;
+
     const rawT = getPref('goal_total');
     const rawE = getPref('goal_elec');
     const rawV = getPref('default_vol');
 
-    if (rawT !== null && rawT !== "") document.getElementById('set-goal-total').value = rawT;
-    else document.getElementById('set-goal-total').value = "";
+    if (rawT !== null && rawT !== "") totalInput.value = rawT;
+    else totalInput.value = "";
 
-    if (rawE !== null && rawE !== "") document.getElementById('set-goal-elec').value = rawE;
-    else document.getElementById('set-goal-elec').value = "";
+    if (rawE !== null && rawE !== "") elecInput.value = rawE;
+    else elecInput.value = "";
 
-    if (rawV !== null && rawV !== "") document.getElementById('set-default-vol').value = rawV;
-    else document.getElementById('set-default-vol').value = "250";
+    if (rawV !== null && rawV !== "") volumeInput.value = rawV;
+    else volumeInput.value = "250";
 
     updateSettingsHint();
 }
@@ -87,6 +173,7 @@ function initCalendar() {
         },
         selectedClass: 'bg-blue-500 text-white shadow-md hover:bg-blue-600'
     });
+    updateWaterCalendarViewToggle();
 }
 
 // Volume Logic
@@ -115,9 +202,14 @@ function updateQuickVolUI() {
 
 // Settings Logic
 function saveGoals() {
-    const t = document.getElementById('set-goal-total').value;
-    const e = document.getElementById('set-goal-elec').value;
-    const v = document.getElementById('set-default-vol').value;
+    const totalInput = document.getElementById('set-goal-total');
+    const elecInput = document.getElementById('set-goal-elec');
+    const volumeInput = document.getElementById('set-default-vol');
+    if (!totalInput || !elecInput || !volumeInput) return;
+
+    const t = totalInput.value;
+    const e = elecInput.value;
+    const v = volumeInput.value;
 
     // Allow empty/0: If empty, save as empty string.
     if (t !== "") {
@@ -322,10 +414,15 @@ function updateHalo(d, tot) {
 
 // Settings Hint Logic
 function updateSettingsHint() {
-    const t = document.getElementById('set-goal-total').value;
-    const e = document.getElementById('set-goal-elec').value;
-    const v = document.getElementById('set-default-vol').value;
+    const totalInput = document.getElementById('set-goal-total');
+    const elecInput = document.getElementById('set-goal-elec');
+    const volumeInput = document.getElementById('set-default-vol');
     const hint = document.getElementById('settings-hint');
+    if (!totalInput || !elecInput || !volumeInput || !hint) return;
+
+    const t = totalInput.value;
+    const e = elecInput.value;
+    const v = volumeInput.value;
     const isEmpty = (!t || t == 0) && (!e || e == 0) && (!v || v == 0);
     if (isEmpty) hint.classList.remove('hidden');
     else hint.classList.add('hidden');
@@ -366,6 +463,9 @@ function renderWaterApp() {
     let html = "";
     d.forEach(i => {
         tot += i.amount;
+    });
+
+    sortWaterRecordsForDisplay(d).forEach(i => {
         const c = DRINK_CONFIG[i.type] || DRINK_CONFIG.default;
         html += `
             <div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
@@ -421,6 +521,7 @@ function openCalendar() {
     // 渲染日历
     if (waterCalendar) {
         waterCalendar.render(calDate, curStr);
+        updateWaterCalendarViewToggle();
     } else {
         console.warn('日历组件未初始化，使用原始渲染');
         renderCalendarLegacy();
@@ -459,7 +560,7 @@ function renderCalendarLegacy() {
             dailyTotals[r.date] = (dailyTotals[r.date] || 0) + r.amount;
         });
 
-        const firstDay = new Date(y, m, 1).getDay();
+        const firstDay = (new Date(y, m, 1).getDay() + 6) % 7;
         const daysInMonth = new Date(y, m + 1, 0).getDate();
         const grid = document.getElementById('cal-days');
         grid.innerHTML = "";
@@ -508,11 +609,43 @@ function renderCalendarLegacy() {
 
 function calChangeMonth(offset) {
     calDate.setMonth(calDate.getMonth() + offset);
+    let selectedDate = getWaterDateStr();
+    if (waterCalendar && waterCalendar.viewMode === 'week') {
+        calDate = new Date(calDate.getFullYear(), calDate.getMonth(), 1);
+        selectedDate = `${calDate.getFullYear()}-${String(calDate.getMonth() + 1).padStart(2, '0')}-01`;
+    }
     if (waterCalendar) {
-        waterCalendar.render(calDate, getWaterDateStr());
+        waterCalendar.render(calDate, selectedDate);
+        updateWaterCalendarViewToggle();
     } else {
         renderCalendarLegacy();
     }
+}
+
+function toggleWaterCalendarView() {
+    if (!waterCalendar) return;
+    waterCalendar.toggleViewMode();
+    updateWaterCalendarViewToggle();
+    waterCalendar.render(calDate, getWaterDateStr());
+}
+
+function goToWaterCalendarToday() {
+    const today = getCurrentDateString();
+    const parts = today.split('-');
+    calDate = new Date(parts[0], parts[1] - 1, parts[2]);
+    waterPickDate(today);
+    if (waterCalendar) {
+        waterCalendar.render(calDate, today);
+        updateWaterCalendarViewToggle();
+    } else {
+        renderCalendarLegacy();
+    }
+}
+
+function updateWaterCalendarViewToggle() {
+    const button = document.getElementById('cal-view-toggle');
+    if (!button || !waterCalendar) return;
+    button.innerText = waterCalendar.getToggleButtonText();
 }
 
 function selectCalDate(str) {
@@ -524,6 +657,7 @@ function selectCalDate(str) {
 window.onload = function () {
     initInputs();
     initCalendar();
+    initDrinkScroll();
     renderWaterApp();
 }
 
@@ -813,6 +947,8 @@ window.waterApp = {
     delWater,
     editWater,
     saveGoals,
+    initDrinkScroll,
+    sortWaterRecordsForDisplay,
     waterChangeDate,
     openCalendar,
     closeCalendar,

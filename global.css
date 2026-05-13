@@ -113,6 +113,24 @@ body {
   animation: fadeIn 0.3s ease-out;
 }
 
+@keyframes calendarViewChange {
+  from {
+    opacity: 0.65;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.calendar-week-view,
+.calendar-month-view {
+  overflow: hidden;
+  animation: calendarViewChange 0.22s ease-out;
+}
+
 /* ---------- Safe Area ---------- */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0);
