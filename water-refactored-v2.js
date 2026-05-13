@@ -33,6 +33,7 @@ let DEFAULT_VOL = parseInt(getPref('default_vol') || WATER_DEFAULT_VOL);
 
 let quickVol = null; // Current quick volume selection
 let calDate = new Date();
+let editingWaterRecord = null;
 
 // 组件实例
 let waterCalendar = null;
@@ -464,20 +465,52 @@ function delWater(id) {
 function editWater(id) {
     getData('water', id).then(item => {
         if (item) {
-            let newVol = prompt("修改水量 (ml):", item.amount);
-            if (newVol && !isNaN(newVol)) {
-                item.amount = parseInt(newVol);
-                saveData('water', item).then(() => {
-                    renderWaterApp();
-                }).catch(err => {
-                    console.error('更新记录失败:', err);
-                    showToast('更新记录失败', 'error');
-                });
-            }
+            editingWaterRecord = { ...item };
+            const timeInput = document.getElementById('edit-water-time');
+            const amountInput = document.getElementById('edit-water-amount');
+            const modal = document.getElementById('edit-water-modal');
+            if (timeInput) timeInput.value = parseWaterRecordTime(item.time) >= 0 ? item.time : '';
+            if (amountInput) amountInput.value = String(item.amount);
+            if (modal) modal.classList.remove('hidden');
         }
     }).catch(err => {
         console.error('获取记录失败:', err);
         showToast('获取记录失败', 'error');
+    });
+}
+
+function closeWaterEdit() {
+    editingWaterRecord = null;
+    const modal = document.getElementById('edit-water-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function saveWaterEdit() {
+    if (!editingWaterRecord) return;
+
+    const timeInput = document.getElementById('edit-water-time');
+    const amountInput = document.getElementById('edit-water-amount');
+    const newTime = timeInput ? timeInput.value : '';
+    const newVol = amountInput ? amountInput.value : '';
+
+    if (parseWaterRecordTime(newTime) < 0) {
+        showToast('请输入正确的时间格式，如 09:30', 'error');
+        return;
+    }
+
+    if (!newVol || isNaN(newVol) || parseInt(newVol) <= 0) {
+        showToast('请输入正确的水量', 'error');
+        return;
+    }
+
+    editingWaterRecord.time = newTime;
+    editingWaterRecord.amount = parseInt(newVol);
+    saveData('water', editingWaterRecord).then(() => {
+        closeWaterEdit();
+        renderWaterApp();
+    }).catch(err => {
+        console.error('更新记录失败:', err);
+        showToast('更新记录失败', 'error');
     });
 }
 
@@ -548,11 +581,11 @@ function updateHalo(d, tot) {
             const config = DRINK_CONFIG[type] || DRINK_CONFIG.default;
 
             sHtml += `
-                <div class="flex items-center justify-center gap-1.5 bg-gray-50 rounded-full px-2 py-1 box-border border border-gray-100 min-w-0">
+                <div class="flex items-center justify-center gap-1 bg-gray-50 rounded-full px-1.5 py-1 box-border border border-gray-100 min-w-0">
                     <div class="w-2 h-2 rounded-full flex-shrink-0" style="background:${config.c}"></div>
-                    <div class="flex flex-col leading-none text-center overflow-hidden w-full">
-                        <span class="text-[10px] text-gray-600 font-bold truncate w-full">${type}</span>
-                        <span class="text-[9px] text-gray-400 truncate w-full">${amount}ml <span class="opacity-50">|</span> ${percent}%</span>
+                    <div class="flex flex-col leading-none text-center min-w-0 flex-1">
+                        <span class="text-[9px] text-gray-600 font-bold leading-tight whitespace-nowrap">${type}</span>
+                        <span class="text-[8px] text-gray-400 leading-tight whitespace-nowrap">${amount}ml <span class="opacity-50">|</span> ${percent}%</span>
                     </div>
                 </div>
             `;
@@ -628,8 +661,12 @@ function renderWaterApp() {
                     </div>
                 </div>
                 <div class="flex gap-2">
-                     <button onclick="editWater('${i.id}')" class="text-xs text-blue-400 px-2 py-1 bg-blue-50 rounded shadow-sm hover:opacity-80 active:scale-95 transition-all">改</button>
-                     <button onclick="delWater('${i.id}')" class="text-xs text-red-400 px-2 py-1 bg-red-50 rounded shadow-sm hover:opacity-80 active:scale-95 transition-all">删</button>
+                     <button onclick="editWater('${i.id}')" class="w-8 h-8 text-blue-400 bg-blue-50 rounded-full shadow-sm hover:opacity-80 active:scale-95 transition-all flex items-center justify-center" title="修改记录" aria-label="修改记录">
+                        <i class="fas fa-pen text-xs"></i>
+                     </button>
+                     <button onclick="delWater('${i.id}')" class="w-8 h-8 text-red-400 bg-red-50 rounded-full shadow-sm hover:opacity-80 active:scale-95 transition-all flex items-center justify-center" title="删除记录" aria-label="删除记录">
+                        <i class="fas fa-trash text-xs"></i>
+                     </button>
                 </div>
             </div>`;
     });
@@ -1099,6 +1136,8 @@ window.waterApp = {
     addWater,
     delWater,
     editWater,
+    closeWaterEdit,
+    saveWaterEdit,
     saveGoals,
     initDrinkScroll,
     sortWaterRecordsForDisplay,

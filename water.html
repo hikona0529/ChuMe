@@ -243,6 +243,43 @@
     <!-- HIDDEN FILE INPUT -->
     <input type="file" id="import-water-file" accept=".json" class="hidden">
 
+    <!-- EDIT WATER MODAL -->
+    <div id="edit-water-modal"
+        class="hidden fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-card shadow-soft w-full max-w-[340px] overflow-hidden">
+            <div class="px-5 py-4 border-b border-chume-brown/10 bg-chume-cream/30">
+                <h2 class="text-lg font-semibold text-chume-brown font-title">修改记录</h2>
+            </div>
+            <div class="divide-y divide-chume-brown/10">
+                <div class="flex items-center px-5 py-3">
+                    <span class="text-chume-brown font-medium shrink-0">打卡时间</span>
+                    <div class="flex-1 flex items-center justify-end">
+                        <input type="time" id="edit-water-time"
+                            class="w-28 outline-none text-right bg-transparent text-chume-brown font-num">
+                    </div>
+                </div>
+                <div class="flex items-center px-5 py-3">
+                    <span class="text-chume-brown font-medium shrink-0">水量</span>
+                    <div class="flex-1 flex items-center justify-end">
+                        <input type="number" id="edit-water-amount"
+                            class="w-24 outline-none text-right bg-transparent text-chume-brown font-num">
+                        <span class="text-sm text-chume-brown-light ml-1 font-title">ml</span>
+                    </div>
+                </div>
+            </div>
+            <div class="p-5 flex items-center gap-3">
+                <button onclick="waterApp.closeWaterEdit()"
+                    class="flex-1 py-3 rounded-full bg-gray-100 text-chume-brown font-semibold active:scale-95 transition-transform font-title">
+                    取消
+                </button>
+                <button onclick="waterApp.saveWaterEdit()"
+                    class="flex-1 py-3 rounded-full bg-chume-orange text-white font-semibold shadow-card active:scale-95 transition-transform font-title">
+                    保存
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- QUICK SETUP MODAL -->
     <div id="quick-setup-modal"
         class="hidden fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">

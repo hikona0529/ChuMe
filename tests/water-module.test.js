@@ -94,7 +94,7 @@ function createDocument(initialIds = []) {
     };
 }
 
-function loadWaterScript() {
+function loadWaterScript(options = {}) {
     const code = fs.readFileSync(path.join(__dirname, '..', 'water-refactored-v2.js'), 'utf8');
     const document = createDocument([
         'import-water-file',
@@ -104,9 +104,26 @@ function loadWaterScript() {
         'quick-setup-elec',
         'quick-setup-elec-enabled',
         'quick-setup-default-vol',
-        'quick-setup-drinks'
+        'quick-setup-drinks',
+        'halo-ring',
+        'center-total',
+        'center-goal',
+        'metric-elec',
+        'halo-data-strip',
+        'subheader-date',
+        'btn-next-day',
+        'water-dash-bg',
+        'water-list',
+        'input-vol-custom',
+        'edit-water-modal',
+        'edit-water-time',
+        'edit-water-amount'
     ]);
     const prefs = new Map();
+    const records = new Map((options.records || []).map(record => [String(record.id), { ...record }]));
+    const savedRecords = [];
+    const toasts = [];
+    const promptResponses = [...(options.promptResponses || [])];
     const sandbox = {
         console: {
             log() {},
@@ -141,20 +158,22 @@ function loadWaterScript() {
         getDateStr() {
             return '2026-05-07';
         },
-        getDataByIndex() {
-            return Promise.resolve([]);
+        getDataByIndex(store, index, value) {
+            return Promise.resolve(Array.from(records.values()).filter(record => record[index] === value));
         },
         getAllData() {
             return Promise.resolve([]);
         },
-        saveData() {
+        saveData(store, record) {
+            records.set(String(record.id), { ...record });
+            savedRecords.push({ ...record });
             return Promise.resolve();
         },
         deleteData() {
             return Promise.resolve();
         },
-        getData() {
-            return Promise.resolve(null);
+        getData(store, id) {
+            return Promise.resolve(records.get(String(id)) || null);
         },
         generateId() {
             return '1';
@@ -162,7 +181,12 @@ function loadWaterScript() {
         formatTime() {
             return '10:00';
         },
-        showToast() {},
+        showToast(message, type) {
+            toasts.push({ message, type });
+        },
+        prompt() {
+            return promptResponses.shift();
+        },
         confirm() {
             return true;
         },
@@ -176,7 +200,7 @@ function loadWaterScript() {
     sandbox.window = sandbox;
     vm.createContext(sandbox);
     vm.runInContext(code, sandbox, { filename: 'water-refactored-v2.js' });
-    return { ...sandbox, prefs };
+    return { ...sandbox, prefs, records, savedRecords, toasts };
 }
 
 function loadSettingsScript({ search = '' } = {}) {
@@ -540,6 +564,69 @@ function loadWaterSettingsScript(initialPrefs) {
     assert.equal(prefs.get('enabled_drinks'), JSON.stringify(['黑咖啡', '拿铁']));
     assert.equal(prefs.get('water_quick_setup_done'), true);
     assert.equal(document.getElementById('quick-setup-modal').classList.contains('hidden'), true);
+})();
+
+(() => {
+    const { waterApp, document, savedRecords } = loadWaterScript({
+        records: [{ id: 'w1', date: '2026-05-07', time: '09:10', type: '茶', amount: 300, isElec: false }],
+    });
+
+    waterApp.editWater('w1');
+
+    Promise.resolve().then(() => {
+        assert.equal(document.getElementById('edit-water-modal').classList.contains('hidden'), false);
+        assert.equal(document.getElementById('edit-water-time').value, '09:10');
+        assert.equal(document.getElementById('edit-water-amount').value, '300');
+
+        document.getElementById('edit-water-time').value = '14:25';
+        document.getElementById('edit-water-amount').value = '450';
+        waterApp.saveWaterEdit();
+    }).then(() => Promise.resolve()).then(() => {
+        assert.equal(savedRecords.length, 1);
+        assert.equal(savedRecords[0].time, '14:25');
+        assert.equal(savedRecords[0].amount, 450);
+        assert.equal(document.getElementById('edit-water-modal').classList.contains('hidden'), true);
+    });
+})();
+
+(() => {
+    const { waterApp, document, savedRecords, toasts } = loadWaterScript({
+        records: [{ id: 'w2', date: '2026-05-07', time: '09:10', type: '茶', amount: 300, isElec: false }],
+    });
+
+    waterApp.editWater('w2');
+
+    Promise.resolve().then(() => {
+        document.getElementById('edit-water-time').value = '25:99';
+        document.getElementById('edit-water-amount').value = '450';
+        waterApp.saveWaterEdit();
+    }).then(() => {
+        assert.equal(savedRecords.length, 0);
+        assert.equal(toasts.at(-1).type, 'error');
+        assert.equal(document.getElementById('edit-water-modal').classList.contains('hidden'), false);
+    });
+})();
+
+(() => {
+    const waterHtml = fs.readFileSync(path.join(__dirname, '..', 'water.html'), 'utf8');
+
+    assert.match(waterHtml, /id="edit-water-modal"/, 'water page should include a unified edit record modal');
+    assert.match(waterHtml, /id="edit-water-time"/, 'edit modal should include a time input');
+    assert.match(waterHtml, /id="edit-water-amount"/, 'edit modal should include an amount input');
+})();
+
+(() => {
+    const waterJs = fs.readFileSync(path.join(__dirname, '..', 'water-refactored-v2.js'), 'utf8');
+
+    assert.match(waterJs, /fa-(pen|pencil)/, 'record edit button should use a pencil icon');
+    assert.match(waterJs, /fa-trash/, 'record delete button should use a trash icon');
+    assert.doesNotMatch(waterJs, />改<\/button>/, 'record edit button should not use text label');
+    assert.doesNotMatch(waterJs, />删<\/button>/, 'record delete button should not use text label');
+    assert.doesNotMatch(
+        waterJs,
+        /text-\[9px\][\s\S]{0,120}truncate/,
+        'halo amount and percentage line should not truncate on mobile'
+    );
 })();
 
 (() => {
