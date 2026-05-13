@@ -8,19 +8,28 @@ if (typeof ChuMeComponents === 'undefined') {
 
 // --- Configuration ---
 const DRINK_CONFIG = {
-    '白开水': { c: '#3B82F6', i: '🥤' }, // Blue
-    '黑咖啡': { c: '#78350F', i: '☕' }, // Dark Brown
-    '电解质': { c: '#F59E0B', i: '⚡' }, // Amber
-    '柠檬水': { c: '#FCD34D', i: '🍋' }, // Light Yellow
-    '淡盐水': { c: '#06B6D4', i: '🧂' }, // Cyan
-    '茶': { c: '#10B981', i: '🍵' }, // Green
+    '白开水': { c: '#3B82F6', i: '🥤', isElec: false }, // Blue
+    '黑咖啡': { c: '#78350F', i: '☕', isElec: false }, // Dark Brown
+    '电解质': { c: '#F59E0B', i: '⚡', isElec: true }, // Amber
+    '柠檬水': { c: '#FCD34D', i: '🍋', isElec: false }, // Light Yellow
+    '淡盐水': { c: '#06B6D4', i: '🧂', isElec: true }, // Cyan
+    '茶': { c: '#10B981', i: '🍵', isElec: false }, // Green
+    '牛奶': { c: '#F3F4F6', i: '🥛', isElec: false },
+    '拿铁': { c: '#B45309', i: '☕', isElec: false },
+    'MCT': { c: '#A855F7', i: '✨', isElec: false },
     'default': { c: '#9CA3AF', i: '❓' }  // Gray
 };
 
+const DRINK_NAMES = Object.keys(DRINK_CONFIG).filter(name => name !== 'default');
+
+const WATER_DEFAULT_TOTAL = 2500;
+const WATER_DEFAULT_ELEC = 500;
+const WATER_DEFAULT_VOL = 300;
+
 let waterViewOffset = 0;
-let GOAL_TOTAL = parseInt(getPref('goal_total') || 2000);
-let GOAL_ELEC = parseInt(getPref('goal_elec') || 500);
-let DEFAULT_VOL = parseInt(getPref('default_vol') || 250);
+let GOAL_TOTAL = parseInt(getPref('goal_total') || WATER_DEFAULT_TOTAL);
+let GOAL_ELEC = isElectrolyteGoalEnabled() ? parseInt(getPref('goal_elec') || WATER_DEFAULT_ELEC) : 0;
+let DEFAULT_VOL = parseInt(getPref('default_vol') || WATER_DEFAULT_VOL);
 
 let quickVol = null; // Current quick volume selection
 let calDate = new Date();
@@ -56,6 +65,110 @@ function sortWaterRecordsForDisplay(records) {
             return getWaterRecordInsertRank(b.record, b.index) - getWaterRecordInsertRank(a.record, a.index);
         })
         .map(item => item.record);
+}
+
+function isElectrolyteGoalEnabled() {
+    const enabled = getPref('goal_elec_enabled');
+    if (enabled !== null && enabled !== '') {
+        return enabled === true || enabled === 'true';
+    }
+
+    const legacyGoal = getPref('goal_elec');
+    return legacyGoal !== null && legacyGoal !== '';
+}
+
+function saveWaterGoalPrefs({ totalGoal, elecGoal, elecEnabled, defaultVol }) {
+    GOAL_TOTAL = parseInt(totalGoal || WATER_DEFAULT_TOTAL);
+    GOAL_ELEC = elecEnabled ? parseInt(elecGoal || WATER_DEFAULT_ELEC) : 0;
+    DEFAULT_VOL = parseInt(defaultVol || WATER_DEFAULT_VOL);
+
+    savePref('goal_total', GOAL_TOTAL);
+    savePref('goal_elec_enabled', !!elecEnabled);
+    savePref('goal_elec', elecEnabled ? GOAL_ELEC : "");
+    savePref('default_vol', DEFAULT_VOL);
+}
+
+function getAllDrinkNames() {
+    return [...DRINK_NAMES];
+}
+
+function parseEnabledDrinks(raw) {
+    if (!raw) return getAllDrinkNames();
+    if (Array.isArray(raw)) return raw;
+
+    try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : getAllDrinkNames();
+    } catch (err) {
+        return getAllDrinkNames();
+    }
+}
+
+function normalizeEnabledDrinks(names) {
+    const enabled = (names || []).filter(name => DRINK_CONFIG[name] && name !== 'default');
+    return enabled.length > 0 ? [...new Set(enabled)] : ['白开水'];
+}
+
+function getEnabledDrinkNames() {
+    return normalizeEnabledDrinks(parseEnabledDrinks(getPref('enabled_drinks')));
+}
+
+function saveEnabledDrinkNames(names) {
+    const enabled = normalizeEnabledDrinks(names);
+    savePref('enabled_drinks', JSON.stringify(enabled));
+    return enabled;
+}
+
+function getCheckedDrinkNames(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return getEnabledDrinkNames();
+
+    const selected = Array.from(container.querySelectorAll('.drink-toggle'))
+        .filter(input => input.checked)
+        .map(input => input.value);
+    return normalizeEnabledDrinks(selected);
+}
+
+function renderDrinkToggleList(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const enabled = new Set(getEnabledDrinkNames());
+    container.innerHTML = getAllDrinkNames().map(name => {
+        const config = DRINK_CONFIG[name] || DRINK_CONFIG.default;
+        const checked = enabled.has(name) ? 'checked' : '';
+        return `
+            <label class="flex items-center justify-between px-4 py-3 border-b border-chume-brown/10 last:border-b-0">
+                <span class="flex items-center gap-2 text-chume-brown font-medium">
+                    <span>${config.i}</span>
+                    <span>${name}</span>
+                </span>
+                <span class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" class="drink-toggle sr-only peer" value="${name}" ${checked}>
+                    <span class="w-10 h-6 bg-chume-brown/20 rounded-full peer peer-checked:bg-chume-orange transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:bg-white after:rounded-full after:shadow-card after:transition-transform peer-checked:after:translate-x-4"></span>
+                </span>
+            </label>
+        `;
+    }).join('');
+}
+
+function renderDrinkOptions() {
+    const scroller = document.getElementById('drink-scroll');
+    if (!scroller) return;
+
+    scroller.innerHTML = getEnabledDrinkNames().map(name => {
+        const config = DRINK_CONFIG[name] || DRINK_CONFIG.default;
+        return `
+            <div onclick="waterApp.addWater('${name}', ${!!config.isElec})"
+                class="shrink-0 w-28 bg-white p-3 rounded-card shadow-card flex flex-col items-center gap-2 active:scale-95 transition-transform cursor-pointer border border-chume-brown/10 snap-start">
+                <span class="text-2xl">${config.i}</span>
+                <div class="flex items-center gap-1.5">
+                    <div class="w-1.5 h-1.5 rounded-full" style="background:${config.c}"></div>
+                    <span class="text-xs font-medium text-chume-brown">${name}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 function initDrinkScroll() {
@@ -123,13 +236,13 @@ function initInputs() {
     const rawV = getPref('default_vol');
 
     if (rawT !== null && rawT !== "") totalInput.value = rawT;
-    else totalInput.value = "";
+    else totalInput.value = String(WATER_DEFAULT_TOTAL);
 
     if (rawE !== null && rawE !== "") elecInput.value = rawE;
-    else elecInput.value = "";
+    else elecInput.value = String(WATER_DEFAULT_ELEC);
 
     if (rawV !== null && rawV !== "") volumeInput.value = rawV;
-    else volumeInput.value = "250";
+    else volumeInput.value = String(WATER_DEFAULT_VOL);
 
     updateSettingsHint();
 }
@@ -207,36 +320,74 @@ function saveGoals() {
     const volumeInput = document.getElementById('set-default-vol');
     if (!totalInput || !elecInput || !volumeInput) return;
 
-    const t = totalInput.value;
-    const e = elecInput.value;
-    const v = volumeInput.value;
-
-    // Allow empty/0: If empty, save as empty string.
-    if (t !== "") {
-        GOAL_TOTAL = parseInt(t);
-        savePref('goal_total', GOAL_TOTAL);
-    } else {
-        GOAL_TOTAL = 0;
-        savePref('goal_total', "");
-    }
-
-    if (e !== "") {
-        GOAL_ELEC = parseInt(e);
-        savePref('goal_elec', GOAL_ELEC);
-    } else {
-        GOAL_ELEC = 0;
-        savePref('goal_elec', "");
-    }
-
-    if (v !== "") {
-        DEFAULT_VOL = parseInt(v);
-        savePref('default_vol', DEFAULT_VOL);
-    } else {
-        DEFAULT_VOL = 250;
-        savePref('default_vol', "");
-    }
+    saveWaterGoalPrefs({
+        totalGoal: totalInput.value,
+        elecGoal: elecInput.value,
+        elecEnabled: isElectrolyteGoalEnabled(),
+        defaultVol: volumeInput.value
+    });
 
     updateSettingsHint();
+    renderWaterApp();
+}
+
+function syncQuickSetupElectrolyteToggle() {
+    const elecInput = document.getElementById('quick-setup-elec');
+    const elecEnabledInput = document.getElementById('quick-setup-elec-enabled');
+    if (!elecInput || !elecEnabledInput) return;
+
+    elecInput.disabled = !elecEnabledInput.checked;
+    if (elecEnabledInput.checked && elecInput.value === '') {
+        elecInput.value = String(WATER_DEFAULT_ELEC);
+    }
+}
+
+function fillQuickSetupDefaults() {
+    const totalInput = document.getElementById('quick-setup-total');
+    const elecInput = document.getElementById('quick-setup-elec');
+    const elecEnabledInput = document.getElementById('quick-setup-elec-enabled');
+    const volumeInput = document.getElementById('quick-setup-default-vol');
+    if (!totalInput || !elecInput || !elecEnabledInput || !volumeInput) return;
+
+    const rawT = getPref('goal_total');
+    const rawE = getPref('goal_elec');
+    const rawV = getPref('default_vol');
+
+    totalInput.value = rawT !== null && rawT !== "" ? rawT : String(WATER_DEFAULT_TOTAL);
+    elecInput.value = rawE !== null && rawE !== "" ? rawE : String(WATER_DEFAULT_ELEC);
+    elecEnabledInput.checked = isElectrolyteGoalEnabled();
+    volumeInput.value = rawV !== null && rawV !== "" ? rawV : String(WATER_DEFAULT_VOL);
+    syncQuickSetupElectrolyteToggle();
+    renderDrinkToggleList('quick-setup-drinks');
+}
+
+function showQuickSetupIfNeeded() {
+    if (getPref('water_quick_setup_done') === true || getPref('water_quick_setup_done') === 'true') return;
+
+    fillQuickSetupDefaults();
+    const modal = document.getElementById('quick-setup-modal');
+    if (modal) modal.classList.remove('hidden');
+}
+
+function saveQuickSetup() {
+    const totalInput = document.getElementById('quick-setup-total');
+    const elecInput = document.getElementById('quick-setup-elec');
+    const elecEnabledInput = document.getElementById('quick-setup-elec-enabled');
+    const volumeInput = document.getElementById('quick-setup-default-vol');
+    if (!totalInput || !elecInput || !elecEnabledInput || !volumeInput) return;
+
+    saveWaterGoalPrefs({
+        totalGoal: totalInput.value,
+        elecGoal: elecInput.value,
+        elecEnabled: elecEnabledInput.checked,
+        defaultVol: volumeInput.value
+    });
+    saveEnabledDrinkNames(getCheckedDrinkNames('quick-setup-drinks'));
+    savePref('water_quick_setup_done', true);
+
+    const modal = document.getElementById('quick-setup-modal');
+    if (modal) modal.classList.add('hidden');
+    renderDrinkOptions();
     renderWaterApp();
 }
 
@@ -656,9 +807,11 @@ function selectCalDate(str) {
 // Init
 window.onload = function () {
     initInputs();
+    renderDrinkOptions();
     initCalendar();
     initDrinkScroll();
     renderWaterApp();
+    showQuickSetupIfNeeded();
 }
 
 // --- Data Sync & Conflict Resolution ---
@@ -949,6 +1102,10 @@ window.waterApp = {
     saveGoals,
     initDrinkScroll,
     sortWaterRecordsForDisplay,
+    getAllDrinkNames,
+    getEnabledDrinkNames,
+    renderDrinkOptions,
+    renderDrinkToggleList,
     waterChangeDate,
     openCalendar,
     closeCalendar,
@@ -957,5 +1114,8 @@ window.waterApp = {
     exportWaterData,
     closeConflictModal,
     overrideAllConflicts,
-    confirmConflictMerge
+    confirmConflictMerge,
+    showQuickSetupIfNeeded,
+    saveQuickSetup,
+    syncQuickSetupElectrolyteToggle
 };

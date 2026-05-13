@@ -25,6 +25,7 @@ class MockElement {
     constructor({ id = '' } = {}) {
         this.id = id;
         this.value = '';
+        this.checked = false;
         this.innerText = '';
         this.innerHTML = '';
         this.className = '';
@@ -38,6 +39,24 @@ class MockElement {
 
     addEventListener(type, handler) {
         this.listeners[type] = handler;
+    }
+
+    querySelectorAll(selector) {
+        return Array.from(this.innerHTML.matchAll(/<input[^>]*>/g), match => {
+            const tag = match[0];
+            if (selector === '.drink-toggle' && !/class="[^"]*\bdrink-toggle\b[^"]*"/.test(tag)) {
+                return null;
+            }
+
+            const id = tag.match(/id="([^"]+)"/);
+            const value = tag.match(/value="([^"]+)"/);
+            const checked = /\bchecked\b/.test(tag);
+            return {
+                id: id ? id[1] : '',
+                value: value ? value[1] : '',
+                checked
+            };
+        }).filter(Boolean);
     }
 
     setPointerCapture() {}
@@ -77,7 +96,17 @@ function createDocument(initialIds = []) {
 
 function loadWaterScript() {
     const code = fs.readFileSync(path.join(__dirname, '..', 'water-refactored-v2.js'), 'utf8');
-    const document = createDocument(['import-water-file', 'drink-scroll']);
+    const document = createDocument([
+        'import-water-file',
+        'drink-scroll',
+        'quick-setup-modal',
+        'quick-setup-total',
+        'quick-setup-elec',
+        'quick-setup-elec-enabled',
+        'quick-setup-default-vol',
+        'quick-setup-drinks'
+    ]);
+    const prefs = new Map();
     const sandbox = {
         console: {
             log() {},
@@ -99,10 +128,13 @@ function loadWaterScript() {
                 hide() {}
             }
         },
-        getPref() {
-            return null;
+        getPref(key) {
+            return prefs.has(key) ? prefs.get(key) : null;
         },
-        savePref() {},
+        savePref(key, value) {
+            prefs.set(key, value);
+            return true;
+        },
         getCurrentDateString() {
             return '2026-05-07';
         },
@@ -144,7 +176,7 @@ function loadWaterScript() {
     sandbox.window = sandbox;
     vm.createContext(sandbox);
     vm.runInContext(code, sandbox, { filename: 'water-refactored-v2.js' });
-    return sandbox;
+    return { ...sandbox, prefs };
 }
 
 function loadSettingsScript({ search = '' } = {}) {
@@ -227,16 +259,19 @@ function loadSettingsScript({ search = '' } = {}) {
     return { sandbox, document, prefs, listeners };
 }
 
-function loadWaterSettingsScript() {
+function loadWaterSettingsScript(initialPrefs) {
     const code = fs.readFileSync(path.join(__dirname, '..', 'water-settings.js'), 'utf8');
     const document = createDocument([
         'set-goal-total',
         'set-goal-elec',
-        'set-default-vol'
+        'set-goal-elec-enabled',
+        'set-default-vol',
+        'water-settings-drinks'
     ]);
-    const prefs = new Map([
+    const prefs = new Map(initialPrefs || [
         ['goal_total', 1800],
         ['goal_elec', 600],
+        ['goal_elec_enabled', true],
         ['default_vol', 300]
     ]);
     const listeners = {};
@@ -305,6 +340,37 @@ function loadWaterSettingsScript() {
 })();
 
 (() => {
+    const { waterApp, document, prefs } = loadWaterScript();
+
+    assert.deepEqual(
+        Array.from(waterApp.getAllDrinkNames()),
+        ['白开水', '黑咖啡', '电解质', '柠檬水', '淡盐水', '茶', '牛奶', '拿铁', 'MCT'],
+        'water module should expose the full drink catalog including milk, latte, and MCT'
+    );
+
+    prefs.set('enabled_drinks', JSON.stringify(['牛奶', 'MCT']));
+    waterApp.renderDrinkOptions();
+
+    const html = document.getElementById('drink-scroll').innerHTML;
+    assert.match(html, /牛奶/);
+    assert.match(html, /MCT/);
+    assert.doesNotMatch(html, /白开水/);
+    assert.doesNotMatch(html, /拿铁/);
+})();
+
+(() => {
+    const { waterApp, prefs } = loadWaterScript();
+
+    prefs.set('enabled_drinks', JSON.stringify([]));
+
+    assert.deepEqual(
+        Array.from(waterApp.getEnabledDrinkNames()),
+        ['白开水'],
+        'water page should keep at least plain water enabled when every drink is turned off'
+    );
+})();
+
+(() => {
     const waterHtml = fs.readFileSync(path.join(__dirname, '..', 'water.html'), 'utf8');
 
     assert.match(
@@ -334,8 +400,23 @@ function loadWaterSettingsScript() {
     );
     assert.doesNotMatch(
         waterHtml,
-        /Drink Grid[\s\S]*grid-cols-3/,
-        'drink options should no longer use the fixed three-column grid'
+        /waterApp\.addWater\('白开水'/,
+        'water page should render drink cards from the drink catalog instead of hard-coding cards'
+    );
+    assert.match(
+        waterHtml,
+        /id="quick-setup-modal"/,
+        'water page should include a first-visit quick setup modal'
+    );
+    assert.match(
+        waterHtml,
+        /id="quick-setup-elec-enabled"/,
+        'quick setup should include an electrolyte enable switch'
+    );
+    assert.match(
+        waterHtml,
+        /id="quick-setup-drinks"/,
+        'quick setup should include configurable default drink switches'
     );
 })();
 
@@ -353,7 +434,9 @@ function loadWaterSettingsScript() {
     assert.match(waterSettingsHtml, /<title>喝水设置<\/title>/, 'water settings page should have its own page title');
     assert.match(waterSettingsHtml, /id="set-goal-total"/, 'water settings page should include total water goal input');
     assert.match(waterSettingsHtml, /id="set-goal-elec"/, 'water settings page should include electrolyte goal input');
+    assert.match(waterSettingsHtml, /id="set-goal-elec-enabled"/, 'water settings page should include electrolyte enable switch');
     assert.match(waterSettingsHtml, /id="set-default-vol"/, 'water settings page should include default volume input');
+    assert.match(waterSettingsHtml, /id="water-settings-drinks"/, 'water settings page should include configurable default drink switches');
     assert.match(waterSettingsHtml, /water-settings\.js/, 'water settings page should load dedicated settings logic');
 })();
 
@@ -365,17 +448,98 @@ function loadWaterSettingsScript() {
 
     assert.equal(document.getElementById('set-goal-total').value, '1800');
     assert.equal(document.getElementById('set-goal-elec').value, '600');
+    assert.equal(document.getElementById('set-goal-elec-enabled').checked, true);
     assert.equal(document.getElementById('set-default-vol').value, '300');
+    assert.match(document.getElementById('water-settings-drinks').innerHTML, /牛奶/);
 
     document.getElementById('set-goal-total').value = '2200';
+    document.getElementById('set-goal-elec-enabled').checked = false;
     document.getElementById('set-goal-elec').value = '';
     document.getElementById('set-default-vol').value = '350';
+    document.getElementById('water-settings-drinks').innerHTML = `
+        <input class="drink-toggle" value="白开水" checked>
+        <input class="drink-toggle" value="牛奶" checked>
+        <input class="drink-toggle" value="MCT">
+    `;
     sandbox.saveWaterSettings();
 
     assert.equal(prefs.get('goal_total'), 2200);
+    assert.equal(prefs.get('goal_elec_enabled'), false);
     assert.equal(prefs.get('goal_elec'), '');
     assert.equal(prefs.get('default_vol'), 350);
+    assert.equal(prefs.get('enabled_drinks'), JSON.stringify(['白开水', '牛奶']));
     assert.equal(sandbox.window.location.href, 'water.html', 'water settings should return to water page after saving');
+})();
+
+(() => {
+    const { sandbox, document, prefs, listeners } = loadWaterSettingsScript(new Map());
+    listeners.load();
+
+    assert.equal(document.getElementById('set-goal-total').value, '2500');
+    assert.equal(document.getElementById('set-goal-elec').value, '500');
+    assert.equal(document.getElementById('set-goal-elec-enabled').checked, false);
+    assert.equal(document.getElementById('set-goal-elec').disabled, true);
+    assert.equal(document.getElementById('set-default-vol').value, '300');
+
+    document.getElementById('set-goal-elec-enabled').checked = true;
+    sandbox.syncWaterElectrolyteToggle();
+    sandbox.saveWaterSettings();
+
+    assert.equal(prefs.get('goal_total'), 2500);
+    assert.equal(prefs.get('goal_elec_enabled'), true);
+    assert.equal(prefs.get('goal_elec'), 500);
+    assert.equal(prefs.get('default_vol'), 300);
+})();
+
+(() => {
+    const { document, listeners } = loadWaterSettingsScript(new Map([
+        ['goal_total', 2000],
+        ['goal_elec', 450],
+        ['default_vol', 280]
+    ]));
+    listeners.load();
+
+    assert.equal(
+        document.getElementById('set-goal-elec-enabled').checked,
+        true,
+        'legacy electrolyte goal should keep electrolyte tracking enabled'
+    );
+    assert.equal(document.getElementById('set-goal-elec').disabled, false);
+})();
+
+(() => {
+    const { waterApp, document, prefs } = loadWaterScript();
+    assert.equal(typeof waterApp.showQuickSetupIfNeeded, 'function');
+    assert.equal(typeof waterApp.saveQuickSetup, 'function');
+
+    waterApp.showQuickSetupIfNeeded();
+
+    assert.equal(document.getElementById('quick-setup-modal').classList.contains('hidden'), false);
+    assert.equal(document.getElementById('quick-setup-total').value, '2500');
+    assert.equal(document.getElementById('quick-setup-default-vol').value, '300');
+    assert.equal(document.getElementById('quick-setup-elec').value, '500');
+    assert.equal(document.getElementById('quick-setup-elec-enabled').checked, false);
+    assert.equal(document.getElementById('quick-setup-elec').disabled, true);
+    assert.match(document.getElementById('quick-setup-drinks').innerHTML, /拿铁/);
+
+    document.getElementById('quick-setup-elec-enabled').checked = true;
+    waterApp.syncQuickSetupElectrolyteToggle();
+    document.getElementById('quick-setup-total').value = '2600';
+    document.getElementById('quick-setup-default-vol').value = '320';
+    document.getElementById('quick-setup-elec').value = '550';
+    document.getElementById('quick-setup-drinks').innerHTML = `
+        <input class="drink-toggle" value="黑咖啡" checked>
+        <input class="drink-toggle" value="拿铁" checked>
+    `;
+    waterApp.saveQuickSetup();
+
+    assert.equal(prefs.get('goal_total'), 2600);
+    assert.equal(prefs.get('default_vol'), 320);
+    assert.equal(prefs.get('goal_elec_enabled'), true);
+    assert.equal(prefs.get('goal_elec'), 550);
+    assert.equal(prefs.get('enabled_drinks'), JSON.stringify(['黑咖啡', '拿铁']));
+    assert.equal(prefs.get('water_quick_setup_done'), true);
+    assert.equal(document.getElementById('quick-setup-modal').classList.contains('hidden'), true);
 })();
 
 (() => {

@@ -67,10 +67,18 @@
                         </div>
                     </div>
                     <div class="flex items-center px-4 py-3">
-                        <span class="text-chume-brown font-medium shrink-0">电解质</span>
+                        <div class="flex items-center gap-3 shrink-0">
+                            <span class="text-chume-brown font-medium">电解质</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="set-goal-elec-enabled" class="sr-only peer"
+                                    onchange="syncWaterElectrolyteToggle()">
+                                <span
+                                    class="w-10 h-6 bg-chume-brown/20 rounded-full peer peer-checked:bg-chume-orange transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:bg-white after:rounded-full after:shadow-card after:transition-transform peer-checked:after:translate-x-4"></span>
+                            </label>
+                        </div>
                         <div class="flex-1 flex items-center justify-end">
                             <input type="number" id="set-goal-elec"
-                                class="w-24 outline-none text-right placeholder-chume-brown-light bg-transparent text-chume-brown font-num"
+                                class="w-24 outline-none text-right placeholder-chume-brown-light bg-transparent text-chume-brown font-num disabled:text-chume-brown-light disabled:opacity-50"
                                 placeholder="未设置">
                             <span class="text-sm text-chume-brown-light ml-1 font-title">ml</span>
                         </div>
@@ -83,6 +91,10 @@
                                 placeholder="未设置">
                             <span class="text-sm text-chume-brown-light ml-1 font-title">ml</span>
                         </div>
+                    </div>
+                    <div class="px-4 py-3">
+                        <div class="text-chume-brown font-medium mb-2">默认饮品</div>
+                        <div id="water-settings-drinks" class="rounded-xl border border-chume-brown/10 overflow-hidden"></div>
                     </div>
                 </div>
             </div>

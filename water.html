@@ -175,54 +175,6 @@
                 <!-- Drink Options -->
                 <div id="drink-scroll" class="drink-scroll flex w-full max-w-full min-w-0 gap-3 overflow-x-auto hide-scrollbar pb-1 snap-x snap-mandatory touch-pan-x select-none cursor-grab"
                     style="-webkit-overflow-scrolling: touch; touch-action: pan-x; overscroll-behavior-x: contain;">
-                    <div onclick="waterApp.addWater('白开水', false)"
-                        class="shrink-0 w-28 bg-white p-3 rounded-card shadow-card flex flex-col items-center gap-2 active:scale-95 transition-transform cursor-pointer border border-chume-brown/10 snap-start">
-                        <span class="text-2xl">🥤</span>
-                        <div class="flex items-center gap-1.5">
-                            <div class="w-1.5 h-1.5 rounded-full bg-[#72BCD4]"></div>
-                            <span class="text-xs font-medium text-chume-brown">白开水</span>
-                        </div>
-                    </div>
-                    <div onclick="waterApp.addWater('黑咖啡', false)"
-                        class="shrink-0 w-28 bg-white p-3 rounded-card shadow-card flex flex-col items-center gap-2 active:scale-95 transition-transform cursor-pointer border border-chume-brown/10 snap-start">
-                        <span class="text-2xl">☕</span>
-                        <div class="flex items-center gap-1.5">
-                            <div class="w-1.5 h-1.5 rounded-full bg-amber-900"></div>
-                            <span class="text-xs font-medium text-chume-brown">黑咖啡</span>
-                        </div>
-                    </div>
-                    <div onclick="waterApp.addWater('电解质', true)"
-                        class="shrink-0 w-28 bg-white p-3 rounded-card shadow-card flex flex-col items-center gap-2 active:scale-95 transition-transform cursor-pointer border border-chume-brown/10 snap-start">
-                        <span class="text-2xl">⚡</span>
-                        <div class="flex items-center gap-1.5">
-                            <div class="w-1.5 h-1.5 rounded-full bg-chume-orange"></div>
-                            <span class="text-xs font-medium text-chume-brown">电解质</span>
-                        </div>
-                    </div>
-                    <div onclick="waterApp.addWater('柠檬水', false)"
-                        class="shrink-0 w-28 bg-white p-3 rounded-card shadow-card flex flex-col items-center gap-2 active:scale-95 transition-transform cursor-pointer border border-chume-brown/10 snap-start">
-                        <span class="text-2xl">🍋</span>
-                        <div class="flex items-center gap-1.5">
-                            <div class="w-1.5 h-1.5 rounded-full bg-yellow-400"></div>
-                            <span class="text-xs font-medium text-chume-brown">柠檬水</span>
-                        </div>
-                    </div>
-                    <div onclick="waterApp.addWater('淡盐水', true)"
-                        class="shrink-0 w-28 bg-white p-3 rounded-card shadow-card flex flex-col items-center gap-2 active:scale-95 transition-transform cursor-pointer border border-chume-brown/10 snap-start">
-                        <span class="text-2xl">🧂</span>
-                        <div class="flex items-center gap-1.5">
-                            <div class="w-1.5 h-1.5 rounded-full bg-cyan-500"></div>
-                            <span class="text-xs font-medium text-chume-brown">淡盐水</span>
-                        </div>
-                    </div>
-                    <div onclick="waterApp.addWater('茶', false)"
-                        class="shrink-0 w-28 bg-white p-3 rounded-card shadow-card flex flex-col items-center gap-2 active:scale-95 transition-transform cursor-pointer border border-chume-brown/10 snap-start">
-                        <span class="text-2xl">🍵</span>
-                        <div class="flex items-center gap-1.5">
-                            <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                            <span class="text-xs font-medium text-chume-brown">茶</span>
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -290,6 +242,61 @@
 
     <!-- HIDDEN FILE INPUT -->
     <input type="file" id="import-water-file" accept=".json" class="hidden">
+
+    <!-- QUICK SETUP MODAL -->
+    <div id="quick-setup-modal"
+        class="hidden fixed inset-0 z-[70] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-card shadow-soft w-full max-w-[360px] overflow-hidden">
+            <div class="px-5 py-4 border-b border-chume-brown/10 bg-chume-cream/30">
+                <h2 class="text-lg font-semibold text-chume-brown font-title">快速设置</h2>
+                <p class="text-xs text-chume-brown-light mt-1">先设好目标，喝水记录会直接按这里计算。</p>
+            </div>
+            <div class="divide-y divide-chume-brown/10">
+                <div class="flex items-center px-5 py-3">
+                    <span class="text-chume-brown font-medium shrink-0">总目标</span>
+                    <div class="flex-1 flex items-center justify-end">
+                        <input type="number" id="quick-setup-total"
+                            class="w-24 outline-none text-right placeholder-chume-brown-light bg-transparent text-chume-brown font-num">
+                        <span class="text-sm text-chume-brown-light ml-1 font-title">ml</span>
+                    </div>
+                </div>
+                <div class="flex items-center px-5 py-3">
+                    <div class="flex items-center gap-3 shrink-0">
+                        <span class="text-chume-brown font-medium">电解质</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="quick-setup-elec-enabled" class="sr-only peer"
+                                onchange="waterApp.syncQuickSetupElectrolyteToggle()">
+                            <span
+                                class="w-10 h-6 bg-chume-brown/20 rounded-full peer peer-checked:bg-chume-orange transition-colors after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:bg-white after:rounded-full after:shadow-card after:transition-transform peer-checked:after:translate-x-4"></span>
+                        </label>
+                    </div>
+                    <div class="flex-1 flex items-center justify-end">
+                        <input type="number" id="quick-setup-elec"
+                            class="w-24 outline-none text-right placeholder-chume-brown-light bg-transparent text-chume-brown font-num disabled:text-chume-brown-light disabled:opacity-50">
+                        <span class="text-sm text-chume-brown-light ml-1 font-title">ml</span>
+                    </div>
+                </div>
+                <div class="flex items-center px-5 py-3">
+                    <span class="text-chume-brown font-medium shrink-0">默认杯量</span>
+                    <div class="flex-1 flex items-center justify-end">
+                        <input type="number" id="quick-setup-default-vol"
+                            class="w-24 outline-none text-right placeholder-chume-brown-light bg-transparent text-chume-brown font-num">
+                        <span class="text-sm text-chume-brown-light ml-1 font-title">ml</span>
+                    </div>
+                </div>
+                <div class="px-5 py-3">
+                    <div class="text-chume-brown font-medium mb-2">默认饮品</div>
+                    <div id="quick-setup-drinks" class="rounded-xl border border-chume-brown/10 overflow-hidden"></div>
+                </div>
+            </div>
+            <div class="p-5">
+                <button onclick="waterApp.saveQuickSetup()"
+                    class="w-full py-3 rounded-full bg-chume-orange text-white font-semibold shadow-card active:scale-95 transition-transform font-title">
+                    保存并开始
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- CONFLICT MODAL -->
     <div id="conflict-modal" class="hidden fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex flex-col items-center justify-end sm:justify-center p-0 sm:p-4 transition-opacity opacity-0">
