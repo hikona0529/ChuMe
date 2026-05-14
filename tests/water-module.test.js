@@ -617,6 +617,7 @@ function loadWaterSettingsScript(initialPrefs) {
 
 (() => {
     const waterJs = fs.readFileSync(path.join(__dirname, '..', 'water-refactored-v2.js'), 'utf8');
+    const waterHtml = fs.readFileSync(path.join(__dirname, '..', 'water.html'), 'utf8');
 
     assert.match(waterJs, /fa-(pen|pencil)/, 'record edit button should use a pencil icon');
     assert.match(waterJs, /fa-trash/, 'record delete button should use a trash icon');
@@ -626,6 +627,21 @@ function loadWaterSettingsScript(initialPrefs) {
         waterJs,
         /text-\[9px\][\s\S]{0,120}truncate/,
         'halo amount and percentage line should not truncate on mobile'
+    );
+    assert.match(
+        waterJs,
+        /text-xs[\s\S]{0,80}\$\{type\}/,
+        'halo drink type should match quick volume button font size'
+    );
+    assert.match(
+        waterJs,
+        /text-xs[\s\S]{0,120}\$\{amount\}ml/,
+        'halo amount and percentage should match quick volume button font size'
+    );
+    assert.match(
+        waterHtml,
+        /halo-data-strip[\s\S]{0,180}px-0/,
+        'halo stat strip should reduce side padding to make room for larger text'
     );
 })();
 

@@ -581,11 +581,11 @@ function updateHalo(d, tot) {
             const config = DRINK_CONFIG[type] || DRINK_CONFIG.default;
 
             sHtml += `
-                <div class="flex items-center justify-center gap-1 bg-gray-50 rounded-full px-1.5 py-1 box-border border border-gray-100 min-w-0">
-                    <div class="w-2 h-2 rounded-full flex-shrink-0" style="background:${config.c}"></div>
+                <div class="flex items-center justify-center gap-0.5 bg-gray-50 rounded-full px-1 py-1 box-border border border-gray-100 min-w-0">
+                    <div class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:${config.c}"></div>
                     <div class="flex flex-col leading-none text-center min-w-0 flex-1">
-                        <span class="text-[9px] text-gray-600 font-bold leading-tight whitespace-nowrap">${type}</span>
-                        <span class="text-[8px] text-gray-400 leading-tight whitespace-nowrap">${amount}ml <span class="opacity-50">|</span> ${percent}%</span>
+                        <span class="text-xs text-gray-600 font-bold leading-tight whitespace-nowrap">${type}</span>
+                        <span class="text-xs text-gray-400 leading-tight whitespace-nowrap">${amount}ml <span class="opacity-50">|</span> ${percent}%</span>
                     </div>
                 </div>
             `;
